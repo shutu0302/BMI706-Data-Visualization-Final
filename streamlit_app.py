@@ -208,6 +208,7 @@ def prevalence_table(df: pd.DataFrame) -> pd.DataFrame:
 # Main app
 # -----------------------------
 
+
 # -----------------------------
 # New from Shu: Age-stratified risk-factor section
 # -----------------------------
@@ -454,27 +455,10 @@ def age_stratified_section(filtered: pd.DataFrame) -> None:
         st.markdown("**Correlation with cardiometabolic health**")
         st.altair_chart(corr_chart, use_container_width=True)
 
-# Load data
-
-df = load_data(DATA_PATH)
-
-st.title("Lifestyle & Comorbidity Explorer – Age-stratified view")
-
-filtered = apply_filters(df)
-
-st.markdown(f"### Current selection: {len(filtered):,} participants")
-
-if filtered.empty:
-    st.warning("No participants match the current filter settings. Try relaxing your filters.")
-else:
-    age_stratified_section(filtered)
-
-
 
 # -----------------------------
-# Kathy's original app code
+# Main app
 # -----------------------------
-
 df = load_data(DATA_PATH)
 
 st.title("Lifestyle & Comorbidity Explorer")
@@ -489,12 +473,20 @@ This dashboard lets you interactively explore how **lifestyle behaviours**
 )
 
 filtered = apply_filters(df)
-
 st.markdown(f"### Current selection: {len(filtered):,} participants")
 
 if filtered.empty:
     st.warning("No participants match the current filter settings. Try relaxing your filters.")
     st.stop()
+
+# ---- First Graph section (Shu) ----
+age_stratified_section(filtered)
+
+
+
+# -----------------------------
+# Kathy's original app code
+# -----------------------------
 
 
 # -----------------------------
