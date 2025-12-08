@@ -683,6 +683,116 @@ correlation_matrix_section(filtered)
 
 
 
+
+# ---------------
+# You's app code
+# ---------------
+
+# -----------------------------------------------
+# 3. Metabolic markers across comorbidity levels
+# -----------------------------------------------
+
+st.markdown("#### 3. Metabolic marker levels in selected disease groups")
+
+selected_biomarker = st.selectbox(
+    "Select a biomarker to compare",
+    options=biomarkers,
+    format_func=nice_label,
+    key="task3_biomarker"
+)
+
+selected_outcomes = st.multiselect(
+    "Select one or more conditions to compare",
+    options=OUTCOME_COLS,
+    format_func=nice_label,
+)
+
+if selected_outcomes:
+    long_frames = []
+    for cond in selected_outcomes:
+        tmp_yes = filtered[
+            filtered[cond].astype(str).str.upper() == "YES"
+        ][[selected_biomarker, "Gender"]].copy()
+        tmp_yes["Condition"] = nice_label(cond)
+        tmp_yes["Status"] = "With condition"
+        
+        tmp_no = filtered[
+            filtered[cond].astype(str).str.upper() == "NO"
+        ][[selected_biomarker, "Gender"]].copy()
+        tmp_no["Condition"] = nice_label(cond)
+        tmp_no["Status"] = "Without condition"
+        
+        long_frames.extend([tmp_yes, tmp_no])
+
+    if long_frames:
+        subset_long = pd.concat(long_frames, ignore_index=True)
+
+        if subset_long.empty:
+            st.warning("No participants available under the current filters.")
+        else:
+            counts = subset_long.groupby(["Condition", "Status"]).size().reset_index(name="n")
+            
+            st.caption("**Sample sizes and summary statistics:**")
+            for cond in selected_outcomes:
+                cond_nice = nice_label(cond)
+                with_cond = subset_long[(subset_long["Condition"] == cond_nice) & 
+                                       (subset_long["Status"] == "With condition")][cm_y_var]
+                without_cond = subset_long[(subset_long["Condition"] == cond_nice) & 
+                                          (subset_long["Status"] == "Without condition")][cm_y_var]
+                
+                if len(with_cond) > 0 and len(without_cond) > 0:
+                    st.caption(
+                        f"**{cond_nice}:** "
+                        f"With (n={len(with_cond)}, median={with_cond.median():.1f}) vs "
+                        f"Without (n={len(without_cond)}, median={without_cond.median():.1f})"
+                    )
+
+            density_chart = (
+                alt.Chart(subset_long)
+                .transform_density(
+                    density=selected_biomarker,
+                    groupby=["Condition", "Status"],
+                    as_=[selected_biomarker, "density"]
+                )
+                .mark_area(opacity=0.5)
+                .encode(
+                    x=alt.X(f"{selected_biomarker}:Q", title=nice_label(selected_biomarker)),
+                    y=alt.Y("density:Q", title="Density"),
+                    color=alt.Color(
+                        "Status:N",
+                        title="Disease Status",
+                        scale=alt.Scale(
+                            domain=["With condition", "Without condition"],
+                            range=["#e74c3c", "#3498db"]  
+                        ),
+                        legend=alt.Legend(orient="top")
+                    ),
+                    tooltip=[
+                        alt.Tooltip("Condition:N", title="Condition"),
+                        alt.Tooltip("Status:N", title="Status")
+                    ]
+                )
+                .properties(height=350)
+                .facet(
+                    column=alt.Column(
+                        "Condition:N",
+                        title="Condition",
+                        header=alt.Header(labelAngle=0, labelAlign="center")
+                    )
+                )
+                .resolve_scale(y="independent")
+            )
+
+            st.altair_chart(density_chart, use_container_width=True)
+            
+    else:
+        st.warning("No data available for the selected conditions.")
+else:
+    st.caption("Select one or more conditions above to compare their metabolic marker distributions.")
+
+
+
+
 # -----------------------------
 # Kathy's original app code
 # -----------------------------
