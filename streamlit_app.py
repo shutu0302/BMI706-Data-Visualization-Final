@@ -207,6 +207,258 @@ def prevalence_table(df: pd.DataFrame) -> pd.DataFrame:
 # -----------------------------
 # Main app
 # -----------------------------
+
+# -----------------------------
+# New from Shu: Age-stratified risk-factor section
+# -----------------------------
+
+
+def add_age_band_column(df: pd.DataFrame, band_width: int = 10) -> pd.DataFrame:
+    """Add a categorical Age_Band column with width-year bands."""
+    tmp = df.copy()
+    age_min = int(np.floor(tmp["Age"].min() / band_width) * band_width)
+    age_max = int(np.ceil(tmp["Age"].max() / band_width) * band_width)
+
+    # Build bins and labels like "40–49"
+    bins = list(range(age_min, age_max + band_width, band_width))
+    labels = [f"{b}–{b + band_width - 1}" for b in bins[:-1]]
+
+    tmp["Age_Band"] = pd.cut(
+        tmp["Age"],
+        bins=bins,
+        labels=labels,
+        include_lowest=True,
+        right=True,
+    )
+    return tmp
+
+
+def age_stratified_section(filtered: pd.DataFrame) -> None:
+    st.subheader("Age-stratified distribution of risk factors")
+
+    # Risk factor selector (metabolic + lifestyle)
+    risk_options = METABOLIC_COLS + LIFESTYLE_COLS
+    risk_var = st.selectbox(
+        "Risk factor",
+        options=risk_options,
+        index=risk_options.index("BMI") if "BMI" in risk_options else 0,
+        format_func=nice_label,
+    )
+
+    # Age display toggle
+    age_mode = st.radio(
+        "Age representation",
+        options=["Grouped (age bands)", "Continuous age"],
+        index=0,
+        horizontal=True,
+    )
+
+    # Add age bands & highlight column
+    tmp = add_age_band_column(filtered)
+    age_bands = [b for b in tmp["Age_Band"].dropna().unique().tolist()]
+
+    highlight_choice = st.selectbox(
+        "Highlight age band (optional)",
+        options=["All ages"] + age_bands,
+        index=0,
+        help="Selected band is emphasized in all plots; others are faded.",
+    )
+
+    if highlight_choice == "All ages":
+        tmp["Is_Highlighted"] = "Highlighted"
+    else:
+        # Age_Band is a categorical; compare as string
+        tmp["Is_Highlighted"] = np.where(
+            tmp["Age_Band"].astype(str) == str(highlight_choice),
+            "Highlighted",
+            "Other",
+        )
+
+    # ----------------- top row: distribution by age -----------------
+    top_left, top_right = st.columns(2)
+
+    # Top-left: distribution of risk factor across age
+    if age_mode.startswith("Grouped"):
+        # Boxplots by age band
+        box_chart = (
+            alt.Chart(tmp.dropna(subset=["Age_Band"]))
+            .mark_boxplot()
+            .encode(
+                x=alt.X("Age_Band:N", title="Age band"),
+                y=alt.Y(f"{risk_var}:Q", title=nice_label(risk_var)),
+                opacity=alt.condition(
+                    "datum.Is_Highlighted == 'Highlighted'",
+                    alt.value(1.0),
+                    alt.value(0.2),
+                ),
+                tooltip=[
+                    alt.Tooltip("Age_Band:N", title="Age band"),
+                    alt.Tooltip(f"{risk_var}:Q", title=nice_label(risk_var), aggregate="mean"),
+                    alt.Tooltip("count()", title="n"),
+                ],
+            )
+            .properties(height=300)
+        )
+    else:
+        # Continuous age: scatter + smooth line
+        base = alt.Chart(tmp).encode(
+            x=alt.X("Age:Q", title="Age"),
+            y=alt.Y(f"{risk_var}:Q", title=nice_label(risk_var)),
+        )
+
+        points = base.mark_circle(size=20, opacity=0.3).encode(
+            opacity=alt.condition(
+                "datum.Is_Highlighted == 'Highlighted'",
+                alt.value(0.7),
+                alt.value(0.15),
+            ),
+            color=alt.Color("Age_Band:N", title="Age band"),
+            tooltip=["Age:Q", f"{risk_var}:Q", "Age_Band:N"],
+        )
+
+        smooth = base.transform_loess(
+            "Age", risk_var, groupby=["Age_Band"], bandwidth=0.5
+        ).mark_line(size=2).encode(
+            color=alt.Color("Age_Band:N", title="Age band"),
+            opacity=alt.condition(
+                "datum.Is_Highlighted == 'Highlighted'",
+                alt.value(1.0),
+                alt.value(0.2),
+            ),
+        )
+
+        box_chart = (points + smooth).properties(height=300)
+
+    with top_left:
+        st.markdown("**Distribution by age**")
+        st.altair_chart(box_chart, use_container_width=True)
+
+    # Top-right: density “ridgeline-style” across age bands
+    density_chart = (
+        alt.Chart(tmp.dropna(subset=["Age_Band"]))
+        .transform_density(
+            risk_var,
+            groupby=["Age_Band"],
+            as_=[risk_var, "density"],
+        )
+        .mark_line()
+        .encode(
+            x=alt.X(f"{risk_var}:Q", title=nice_label(risk_var)),
+            y=alt.Y("density:Q", title="Density"),
+            color=alt.Color("Age_Band:N", title="Age band"),
+            opacity=alt.condition(
+                "datum.Is_Highlighted == 'Highlighted'",
+                alt.value(1.0),
+                alt.value(0.25),
+            ),
+            tooltip=[
+                alt.Tooltip("Age_Band:N", title="Age band"),
+                alt.Tooltip(f"{risk_var}:Q", title=nice_label(risk_var)),
+                alt.Tooltip("density:Q", title="Density", format=".3f"),
+            ],
+        )
+        .properties(height=300)
+    )
+
+    with top_right:
+        st.markdown("**Risk-factor distribution by age band**")
+        st.altair_chart(density_chart, use_container_width=True)
+
+    # ----------------- bottom row: by gender & CV correlation -----------------
+    bottom_left, bottom_right = st.columns(2)
+
+    # Bottom-left: mean risk factor vs age, by gender
+    # Aggregate to keep it smooth-ish
+    gender_age = (
+        tmp.dropna(subset=["Gender"])
+        .groupby(["Age", "Gender"], as_index=False)[risk_var]
+        .mean()
+    )
+    # Add bands & highlight info to aggregated df
+    gender_age = add_age_band_column(gender_age)
+    if highlight_choice == "All ages":
+        gender_age["Is_Highlighted"] = "Highlighted"
+    else:
+        gender_age["Is_Highlighted"] = np.where(
+            gender_age["Age_Band"].astype(str) == str(highlight_choice),
+            "Highlighted",
+            "Other",
+        )
+
+    gender_chart = (
+        alt.Chart(gender_age)
+        .mark_line()
+        .encode(
+            x=alt.X("Age:Q", title="Age"),
+            y=alt.Y(f"{risk_var}:Q", title=f"Mean {nice_label(risk_var)}"),
+            color=alt.Color("Gender:N", title="Gender"),
+            opacity=alt.condition(
+                "datum.Is_Highlighted == 'Highlighted'",
+                alt.value(1.0),
+                alt.value(0.3),
+            ),
+            tooltip=["Age:Q", "Gender:N", f"{risk_var}:Q"],
+        )
+        .properties(height=280)
+    )
+
+    with bottom_left:
+        st.markdown("**By gender across age**")
+        st.altair_chart(gender_chart, use_container_width=True)
+
+    # Bottom-right: correlation with a cardiometabolic variable
+    cardio_candidates = [
+        "Systolic_BP_Average",
+        "Diastolic_BP_Average",
+        "Total_Cholesterol",
+        "LDL_Cholesterol",
+        "HDL_Cholesterol",
+        "Triglycerides",
+        "Serum_Glucose",
+        "Glycohemoglobin",
+    ]
+    cardio_candidates = [c for c in cardio_candidates if c in METABOLIC_COLS]
+
+    cv_var = st.selectbox(
+        "Cardiometabolic variable (y-axis)",
+        options=cardio_candidates,
+        index=cardio_candidates.index("Systolic_BP_Average")
+        if "Systolic_BP_Average" in cardio_candidates
+        else 0,
+        format_func=nice_label,
+    )
+
+    corr_chart = (
+        alt.Chart(tmp.dropna(subset=["Age_Band"]))
+        .mark_circle(size=25)
+        .encode(
+            x=alt.X(f"{risk_var}:Q", title=nice_label(risk_var)),
+            y=alt.Y(f"{cv_var}:Q", title=nice_label(cv_var)),
+            color=alt.Color("Age_Band:N", title="Age band"),
+            opacity=alt.condition(
+                "datum.Is_Highlighted == 'Highlighted'",
+                alt.value(0.9),
+                alt.value(0.2),
+            ),
+            tooltip=[
+                alt.Tooltip("Age:Q", title="Age"),
+                alt.Tooltip("Age_Band:N", title="Age band"),
+                alt.Tooltip(f"{risk_var}:Q", title=nice_label(risk_var)),
+                alt.Tooltip(f"{cv_var}:Q", title=nice_label(cv_var)),
+            ],
+        )
+        .properties(height=280)
+    )
+
+    with bottom_right:
+        st.markdown("**Correlation with cardiometabolic health**")
+        st.altair_chart(corr_chart, use_container_width=True)
+
+
+# -----------------------------
+# Kathy's original app code
+# -----------------------------
+
 df = load_data(DATA_PATH)
 
 st.title("Lifestyle & Comorbidity Explorer")
