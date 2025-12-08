@@ -273,7 +273,7 @@ def add_age_band_column(df: pd.DataFrame, band_width: int = 10) -> pd.DataFrame:
 
 
 def age_stratified_section(filtered: pd.DataFrame) -> None:
-    st.subheader("Age-stratified distribution of risk factors")
+    st.subheader("1. Age-stratified distribution of risk factors")
 
     # Risk factor selector (metabolic + lifestyle)
     risk_options = METABOLIC_COLS + LIFESTYLE_COLS
@@ -497,7 +497,7 @@ def age_stratified_section(filtered: pd.DataFrame) -> None:
 # 2. Correlation matrix of biomarkers (Shu)
 # -----------------------------
 def correlation_matrix_section(filtered: pd.DataFrame) -> None:
-    st.subheader("Correlation matrix of biomarkers")
+    st.subheader("2. Correlation matrix of biomarkers")
 
     df = add_age_band_column(filtered)
 
@@ -691,7 +691,7 @@ correlation_matrix_section(filtered)
 # -----------------------------
 # 1. Disease prevalence summary
 # -----------------------------
-st.subheader("Comorbidity overview under current filters")
+st.subheader("3. Comorbidity overview under current filters")
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -730,7 +730,7 @@ st.altair_chart(prev_chart, use_container_width=True)
 # 2. Metabolic markers across comorbidity levels
 # -----------------------------
 
-st.subheader("Metabolic markers across comorbidity levels")
+st.subheader("4. Metabolic markers across comorbidity levels")
 
 cm_y_var = st.selectbox(
     "Metabolic variable (y-axis, by comorbidity count)",
@@ -847,7 +847,7 @@ else:
 # -----------------------------
 # 3. Comorbidity / disease prevalence by lifestyle level
 # -----------------------------
-st.subheader("Comorbidity / disease prevalence by lifestyle level")
+st.subheader("5. Comorbidity / disease prevalence by lifestyle level")
 
 life_var = st.selectbox(
     "Lifestyle variable to group by",
