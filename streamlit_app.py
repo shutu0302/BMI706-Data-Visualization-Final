@@ -799,6 +799,7 @@ else:
 
 st.markdown("#### 4. Biomarker trends across age with clinical thresholds")
 
+# Biomarker selector
 selected_biomarker_age = st.selectbox(
     "Select a biomarker to view age trends",
     options=METABOLIC_COLS,
@@ -892,98 +893,136 @@ DEFAULT_THRESHOLDS = {
     ]
 }
 
-CLINICAL_THRESHOLDS = DEFAULT_THRESHOLDS.copy()
+# Initialize session state for custom thresholds (per biomarker)
+if "custom_thresholds_dict" not in st.session_state:
+    st.session_state.custom_thresholds_dict = {}
 
+# Check if we need to use custom thresholds or defaults for current biomarker
+if selected_biomarker_age in st.session_state.custom_thresholds_dict:
+    # Use previously customized thresholds for this biomarker
+    CLINICAL_THRESHOLDS = {selected_biomarker_age: st.session_state.custom_thresholds_dict[selected_biomarker_age]}
+else:
+    # Use default thresholds
+    CLINICAL_THRESHOLDS = DEFAULT_THRESHOLDS.copy()
 
+# Threshold customization
 st.markdown("##### Customize clinical thresholds (optional)")
 with st.expander("Adjust thresholds for selected biomarker"):
     if selected_biomarker_age in DEFAULT_THRESHOLDS:
-        st.caption(f"Adjust thresholds for **{nice_label(selected_biomarker_age)}**")
+        st.caption(f"Adjust thresholds for **{nice_label(selected_biomarker_age)}** (defaults are shown)")
+        
+        # Get current thresholds (either custom or default)
+        if selected_biomarker_age in st.session_state.custom_thresholds_dict:
+            current_thresholds = st.session_state.custom_thresholds_dict[selected_biomarker_age]
+        else:
+            current_thresholds = DEFAULT_THRESHOLDS[selected_biomarker_age]
         
         # Allow users to modify thresholds
         custom_thresholds = []
-        default_thresholds = DEFAULT_THRESHOLDS[selected_biomarker_age]
         
         num_thresholds = st.number_input(
             "Number of thresholds",
             min_value=0,
             max_value=6,
-            value=len(default_thresholds),
-            key="num_thresholds"
+            value=len(current_thresholds),
+            key=f"num_thresholds_{selected_biomarker_age}"
         )
         
         if num_thresholds > 0:
-            cols = st.columns(3)
             for i in range(num_thresholds):
-                default = default_thresholds[i] if i < len(default_thresholds) else {"value": 0, "label": f"Threshold {i+1}", "color": "#95a5a6"}
+                default = current_thresholds[i] if i < len(current_thresholds) else {"value": 0, "label": f"Threshold {i+1}", "color": "#95a5a6"}
                 
+                cols = st.columns(3)
                 with cols[0]:
                     value = st.number_input(
                         f"Value {i+1}",
                         value=float(default["value"]),
-                        key=f"threshold_val_{i}",
+                        key=f"threshold_val_{selected_biomarker_age}_{i}",
                         format="%.2f"
                     )
                 with cols[1]:
                     label = st.text_input(
                         f"Label {i+1}",
                         value=default["label"],
-                        key=f"threshold_label_{i}"
+                        key=f"threshold_label_{selected_biomarker_age}_{i}"
                     )
                 with cols[2]:
                     color = st.color_picker(
                         f"Color {i+1}",
                         value=default["color"],
-                        key=f"threshold_color_{i}"
+                        key=f"threshold_color_{selected_biomarker_age}_{i}"
                     )
                 
                 custom_thresholds.append({"value": value, "label": label, "color": color})
+            
+            # Save custom thresholds to session state for this specific biomarker
+            st.session_state.custom_thresholds_dict[selected_biomarker_age] = custom_thresholds
+            CLINICAL_THRESHOLDS[selected_biomarker_age] = custom_thresholds
+        else:
+            # If user sets to 0, save empty list
+            st.session_state.custom_thresholds_dict[selected_biomarker_age] = []
+            CLINICAL_THRESHOLDS[selected_biomarker_age] = []
         
-        CLINICAL_THRESHOLDS = {selected_biomarker_age: custom_thresholds} if custom_thresholds else {}
+        # Add reset button
+        if st.button("Reset to defaults", key=f"reset_thresh_{selected_biomarker_age}"):
+            if selected_biomarker_age in st.session_state.custom_thresholds_dict:
+                del st.session_state.custom_thresholds_dict[selected_biomarker_age]
+            st.rerun()
+            
     else:
         st.info(f"No default thresholds defined for {nice_label(selected_biomarker_age)}. You can add custom thresholds below.")
+        
+        # Get current custom thresholds if they exist
+        if selected_biomarker_age in st.session_state.custom_thresholds_dict:
+            current_custom = st.session_state.custom_thresholds_dict[selected_biomarker_age]
+        else:
+            current_custom = []
         
         num_thresholds = st.number_input(
             "Number of thresholds to add",
             min_value=0,
             max_value=6,
-            value=0,
-            key="num_custom_thresholds"
+            value=len(current_custom),
+            key=f"num_custom_thresholds_{selected_biomarker_age}"
         )
         
         custom_thresholds = []
         if num_thresholds > 0:
-            cols = st.columns(3)
             for i in range(num_thresholds):
+                default = current_custom[i] if i < len(current_custom) else {"value": 0, "label": f"Threshold {i+1}", "color": "#95a5a6"}
+                
+                cols = st.columns(3)
                 with cols[0]:
                     value = st.number_input(
                         f"Value {i+1}",
-                        value=0.0,
-                        key=f"custom_threshold_val_{i}",
+                        value=float(default["value"]),
+                        key=f"custom_threshold_val_{selected_biomarker_age}_{i}",
                         format="%.2f"
                     )
                 with cols[1]:
                     label = st.text_input(
                         f"Label {i+1}",
-                        value=f"Threshold {i+1}",
-                        key=f"custom_threshold_label_{i}"
+                        value=default["label"],
+                        key=f"custom_threshold_label_{selected_biomarker_age}_{i}"
                     )
                 with cols[2]:
                     color = st.color_picker(
                         f"Color {i+1}",
-                        value="#95a5a6",
-                        key=f"custom_threshold_color_{i}"
+                        value=default["color"],
+                        key=f"custom_threshold_color_{selected_biomarker_age}_{i}"
                     )
                 
                 custom_thresholds.append({"value": value, "label": label, "color": color})
+            
+            # Save custom thresholds for biomarker without defaults
+            st.session_state.custom_thresholds_dict[selected_biomarker_age] = custom_thresholds
+            CLINICAL_THRESHOLDS[selected_biomarker_age] = custom_thresholds
         
-        CLINICAL_THRESHOLDS = {selected_biomarker_age: custom_thresholds} if custom_thresholds else {}
-
-# If no custom thresholds were set, use defaults
-if selected_biomarker_age not in CLINICAL_THRESHOLDS and selected_biomarker_age in DEFAULT_THRESHOLDS:
-    CLINICAL_THRESHOLDS = {selected_biomarker_age: DEFAULT_THRESHOLDS[selected_biomarker_age]}
-
-
+        # Add clear button
+        if current_custom and st.button("Clear custom thresholds", key=f"clear_thresh_{selected_biomarker_age}"):
+            if selected_biomarker_age in st.session_state.custom_thresholds_dict:
+                del st.session_state.custom_thresholds_dict[selected_biomarker_age]
+            st.rerun()
 
 # Filter data for valid age and biomarker values
 age_data = filtered[["Age", selected_biomarker_age, "Gender"]].dropna()
@@ -1057,7 +1096,7 @@ else:
         
         # Clinical threshold lines
         threshold_layers = []
-        if selected_biomarker_age in CLINICAL_THRESHOLDS:
+        if selected_biomarker_age in CLINICAL_THRESHOLDS and CLINICAL_THRESHOLDS[selected_biomarker_age]:
             for threshold in CLINICAL_THRESHOLDS[selected_biomarker_age]:
                 threshold_line = alt.Chart(pd.DataFrame({
                     "threshold": [threshold["value"]],
@@ -1094,7 +1133,7 @@ else:
         st.altair_chart(charts[0], use_container_width=True)
     
     # Add legend for clinical thresholds
-    if selected_biomarker_age in CLINICAL_THRESHOLDS:
+    if selected_biomarker_age in CLINICAL_THRESHOLDS and CLINICAL_THRESHOLDS[selected_biomarker_age]:
         st.caption("**Clinical thresholds:**")
         threshold_text = " | ".join([
             f"{t['label']}: {t['value']}" for t in CLINICAL_THRESHOLDS[selected_biomarker_age]
@@ -1104,6 +1143,11 @@ else:
         # Add source citations
         st.caption("*Thresholds based on clinical guidelines (AHA, ADA, ACC, CDC, WHO). Individual risk assessment should consider multiple factors.*")
     
+    st.caption(
+        "💡 **Interpretation:** The solid line shows the median trend across age using rolling window smoothing. "
+        "The shaded band represents the 10th-90th percentile range, showing population variability. "
+        "Dashed lines indicate clinical thresholds for risk assessment."
+    )
 
 
 
