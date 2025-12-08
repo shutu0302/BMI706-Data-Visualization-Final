@@ -454,6 +454,22 @@ def age_stratified_section(filtered: pd.DataFrame) -> None:
         st.markdown("**Correlation with cardiometabolic health**")
         st.altair_chart(corr_chart, use_container_width=True)
 
+# Load data
+
+df = load_data(DATA_PATH)
+
+st.title("Lifestyle & Comorbidity Explorer – Age-stratified view")
+
+filtered = apply_filters(df)
+
+st.markdown(f"### Current selection: {len(filtered):,} participants")
+
+if filtered.empty:
+    st.warning("No participants match the current filter settings. Try relaxing your filters.")
+else:
+    age_stratified_section(filtered)
+
+
 
 # -----------------------------
 # Kathy's original app code
