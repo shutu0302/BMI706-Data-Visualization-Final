@@ -982,17 +982,20 @@ if selected_biomarker_age not in CLINICAL_THRESHOLDS and selected_biomarker_age 
 
 
 
+# Filter data for valid age and biomarker values
 age_data = filtered[["Age", selected_biomarker_age, "Gender"]].dropna()
 
 if age_data.empty:
     st.warning("No data available for the selected biomarker and current filters.")
 else:
+    # Display sample sizes
     st.caption(f"**Age trend analysis for {nice_label(selected_biomarker_age)}**")
     total_n = len(age_data)
     male_n = len(age_data[age_data["Gender"] == "Male"])
     female_n = len(age_data[age_data["Gender"] == "Female"])
     st.caption(f"Total participants: {total_n} (Male: {male_n}, Female: {female_n})")
     
+    # Create side-by-side charts for Male and Female
     charts = []
     
     for gender in ["Male", "Female"]:
@@ -1001,72 +1004,55 @@ else:
         if gender_data.empty:
             continue
         
-        gender_data = gender_data.sort_values("Age")
+        # Sort by age for smooth lines
+        gender_data = gender_data.sort_values("Age").reset_index(drop=True)
         
-       
-        scatter = alt.Chart(gender_data).mark_circle(
-            opacity=0.1,
-            size=20
-        ).encode(
-            x=alt.X("Age:Q", title="Age (years)", scale=alt.Scale(domain=[20, 80])),
-            y=alt.Y(f"{selected_biomarker_age}:Q", title=nice_label(selected_biomarker_age))
-        )
-        
-        median_line = alt.Chart(gender_data).mark_line(
-            size=3
-        ).transform_loess(
-            "Age",
-            selected_biomarker_age,
-            bandwidth=0.3  
-        ).encode(
-            x=alt.X("Age:Q"),
-            y=alt.Y(f"{selected_biomarker_age}:Q"),
-            color=alt.value("#ff69b4" if gender == "Female" else "#1f77b4")
-        )
-        
-        
-        band_data = gender_data.copy()
-        
-        p10_line = alt.Chart(gender_data).mark_line(
-            opacity=0
-        ).transform_quantile_regression(
-            "Age",
-            selected_biomarker_age,
-            quantile=0.1
-        ).encode(
-            x=alt.X("Age:Q"),
-            y=alt.Y(f"{selected_biomarker_age}:Q")
-        )
-        
-        p90_line = alt.Chart(gender_data).mark_line(
-            opacity=0
-        ).transform_quantile_regression(
-            "Age",
-            selected_biomarker_age,
-            quantile=0.9
-        ).encode(
-            x=alt.X("Age:Q"),
-            y=alt.Y(f"{selected_biomarker_age}:Q")
-        )
-        
-        window_size = max(20, len(gender_data) // 20)  
-        gender_data_sorted = gender_data.sort_values("Age")
-        gender_data_sorted["P10"] = gender_data_sorted[selected_biomarker_age].rolling(
-            window=window_size, center=True, min_periods=5
+        # Calculate rolling percentiles using pandas
+        window_size = max(30, len(gender_data) // 15)  # Adaptive window size
+        gender_data["Median"] = gender_data[selected_biomarker_age].rolling(
+            window=window_size, center=True, min_periods=10
+        ).median()
+        gender_data["P10"] = gender_data[selected_biomarker_age].rolling(
+            window=window_size, center=True, min_periods=10
         ).quantile(0.1)
-        gender_data_sorted["P90"] = gender_data_sorted[selected_biomarker_age].rolling(
-            window=window_size, center=True, min_periods=5
+        gender_data["P90"] = gender_data[selected_biomarker_age].rolling(
+            window=window_size, center=True, min_periods=10
         ).quantile(0.9)
         
-        band = alt.Chart(gender_data_sorted).mark_area(
-            opacity=0.2
+        # Remove NaN values from rolling calculations
+        gender_data_clean = gender_data.dropna(subset=["Median", "P10", "P90"])
+        
+        if gender_data_clean.empty:
+            continue
+        
+        # Uncertainty band (10th-90th percentile)
+        band = alt.Chart(gender_data_clean).mark_area(
+            opacity=0.2,
+            interpolate="monotone"
         ).encode(
-            x=alt.X("Age:Q"),
+            x=alt.X("Age:Q", title="Age (years)", scale=alt.Scale(domain=[20, 80])),
             y=alt.Y("P10:Q", title=nice_label(selected_biomarker_age)),
             y2=alt.Y2("P90:Q"),
             color=alt.value("#ff69b4" if gender == "Female" else "#1f77b4")
         )
         
+        # Median line
+        median_line = alt.Chart(gender_data_clean).mark_line(
+            size=3,
+            interpolate="monotone"
+        ).encode(
+            x=alt.X("Age:Q"),
+            y=alt.Y("Median:Q"),
+            color=alt.value("#ff69b4" if gender == "Female" else "#1f77b4"),
+            tooltip=[
+                alt.Tooltip("Age:Q", title="Age", format=".0f"),
+                alt.Tooltip("Median:Q", title="Median", format=".1f"),
+                alt.Tooltip("P10:Q", title="10th percentile", format=".1f"),
+                alt.Tooltip("P90:Q", title="90th percentile", format=".1f")
+            ]
+        )
+        
+        # Clinical threshold lines
         threshold_layers = []
         if selected_biomarker_age in CLINICAL_THRESHOLDS:
             for threshold in CLINICAL_THRESHOLDS[selected_biomarker_age]:
@@ -1084,6 +1070,7 @@ else:
                 )
                 threshold_layers.append(threshold_line)
         
+        # Combine all layers
         chart = band + median_line
         for tl in threshold_layers:
             chart = chart + tl
@@ -1096,12 +1083,14 @@ else:
         
         charts.append(chart)
     
+    # Display charts side by side
     if len(charts) == 2:
         combined_chart = alt.hconcat(*charts).resolve_scale(y="shared")
         st.altair_chart(combined_chart, use_container_width=True)
     elif len(charts) == 1:
         st.altair_chart(charts[0], use_container_width=True)
     
+    # Add legend for clinical thresholds
     if selected_biomarker_age in CLINICAL_THRESHOLDS:
         st.caption("**Clinical thresholds:**")
         threshold_text = " | ".join([
@@ -1109,8 +1098,9 @@ else:
         ])
         st.caption(threshold_text)
         
+        # Add source citations
         st.caption("*Thresholds based on clinical guidelines (AHA, ADA, ACC, CDC, WHO). Individual risk assessment should consider multiple factors.*")
-
+    
 
 
 
