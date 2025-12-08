@@ -697,7 +697,7 @@ st.markdown("#### 3. Metabolic marker levels in selected disease groups")
 selected_biomarker = st.selectbox(
     "Select a biomarker to compare",
     options=METABOLIC_COLS,
-    default=METABOLIC_COLS[0],
+    index=0,
     format_func=nice_label,
     key="task3_biomarker"
 )
@@ -705,7 +705,7 @@ selected_biomarker = st.selectbox(
 selected_outcomes = st.multiselect(
     "Select one or more conditions to compare",
     options=OUTCOME_COLS,
-    default=OUTCOME_COLS[0],
+    default=[OUTCOME_COLS[0]],
     format_func=nice_label,
 )
 
