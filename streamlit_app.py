@@ -213,6 +213,9 @@ def prevalence_table(df: pd.DataFrame) -> pd.DataFrame:
 # New from Shu: Age-stratified risk-factor section
 # -----------------------------
 
+# -----------------------------
+# 1. Age-stratified risk-factor section
+# -----------------------------
 
 def add_age_band_column(df: pd.DataFrame, band_width: int = 10) -> pd.DataFrame:
     """Add a categorical Age_Band column with width-year bands."""
@@ -455,6 +458,186 @@ def age_stratified_section(filtered: pd.DataFrame) -> None:
         st.markdown("**Correlation with cardiometabolic health**")
         st.altair_chart(corr_chart, use_container_width=True)
 
+# -----------------------------
+# 2. Correlation matrix of biomarkers
+# -----------------------------
+def correlation_matrix_section(filtered: pd.DataFrame) -> None:
+    st.subheader("Correlation matrix of biomarkers")
+
+    df = add_age_band_column(filtered)
+
+    # --- Controls ---
+    # Age bands
+    age_bands = sorted(df["Age_Band"].dropna().unique().tolist())
+    selected_bands = st.multiselect(
+        "Age bands",
+        options=age_bands,
+        default=age_bands,
+    )
+    if selected_bands:
+        df = df[df["Age_Band"].isin(selected_bands)]
+
+    # Gender
+    gender_vals = sorted(df["Gender"].dropna().astype(str).unique().tolist())
+    selected_gender = st.multiselect(
+        "Gender",
+        options=gender_vals,
+        default=gender_vals,
+    )
+    if selected_gender:
+        df = df[df["Gender"].astype(str).isin(selected_gender)]
+
+    # Disease state
+    disease_options = (
+        ["All participants", "Healthy (no comorbidities)", "Any comorbidity (≥1)"]
+        + [nice_label(c) for c in OUTCOME_COLS]
+    )
+    disease_choice = st.selectbox("Disease state", options=disease_options)
+
+    if disease_choice == "Healthy (no comorbidities)":
+        df = df[df["Any_Comorbidity"] == "No"]
+    elif disease_choice == "Any comorbidity (≥1)":
+        df = df[df["Any_Comorbidity"] == "Yes"]
+    elif disease_choice != "All participants":
+        # Map pretty label back to column
+        col_map = {nice_label(c): c for c in OUTCOME_COLS}
+        disease_col = col_map[disease_choice]
+        df = df[df[disease_col].astype(str).str.upper() == "YES"]
+
+    # If nothing left, bail
+    if df.empty:
+        st.warning("No data available under the current age / gender / disease filters.")
+        return
+
+    # Biomarkers to include
+    default_biomarkers = [
+        "BMI",
+        "Total_Cholesterol",
+        "HDL_Cholesterol",
+        "LDL_Cholesterol",
+        "Triglycerides",
+        "Serum_Glucose",
+        "Glycohemoglobin",
+        "Systolic_BP_Average",
+        "Diastolic_BP_Average",
+    ]
+    default_biomarkers = [b for b in default_biomarkers if b in METABOLIC_COLS]
+
+    biomarkers = st.multiselect(
+        "Biomarkers to include in the correlation matrix",
+        options=METABOLIC_COLS,
+        default=default_biomarkers or METABOLIC_COLS[:6],
+        format_func=nice_label,
+    )
+
+    if len(biomarkers) < 2:
+        st.info("Select at least two biomarkers to compute correlations.")
+        return
+
+    df_bio = df[biomarkers].dropna()
+    if df_bio.empty:
+        st.warning("No complete biomarker measurements for the current filters.")
+        return
+
+    # --- Build pairwise long data and correlations ---
+    from itertools import combinations
+
+    long_records = []
+    for x, y in combinations(biomarkers, 2):
+        sub = df_bio[[x, y]].dropna()
+        if sub.empty:
+            continue
+        for xv, yv in sub.itertuples(index=False):
+            long_records.append(
+                {
+                    "Biomarker_X": x,
+                    "Biomarker_Y": y,
+                    "x_value": xv,
+                    "y_value": yv,
+                }
+            )
+
+    if not long_records:
+        st.warning("Not enough overlapping data across biomarker pairs.")
+        return
+
+    long_df = pd.DataFrame(long_records)
+
+    # Compute correlations per pair
+    corr_rows = []
+    for (x, y), g in long_df.groupby(["Biomarker_X", "Biomarker_Y"]):
+        r = g[["x_value", "y_value"]].corr().iloc[0, 1]
+        corr_rows.append(
+            {"Biomarker_X": x, "Biomarker_Y": y, "Correlation": r}
+        )
+
+    corr_df = pd.DataFrame(corr_rows)
+
+    # Mirror to get a full matrix (optional but looks nicer)
+    mirror_df = corr_df.rename(
+        columns={"Biomarker_X": "Biomarker_Y", "Biomarker_Y": "Biomarker_X"}
+    )
+    corr_full = pd.concat([corr_df, mirror_df], ignore_index=True)
+
+    # Add diagonal (correlation = 1)
+    diag_rows = [
+        {"Biomarker_X": b, "Biomarker_Y": b, "Correlation": 1.0} for b in biomarkers
+    ]
+    corr_full = pd.concat([corr_full, pd.DataFrame(diag_rows)], ignore_index=True)
+
+    # --- Altair charts: heatmap + scatter linked by selection ---
+    selection = alt.selection_point(
+        fields=["Biomarker_X", "Biomarker_Y"],
+        empty="none",  # no scatter until a cell is clicked
+        name="pair",
+    )
+
+    heatmap = (
+        alt.Chart(corr_full)
+        .mark_rect()
+        .encode(
+            x=alt.X("Biomarker_X:N", title="", sort=biomarkers),
+            y=alt.Y("Biomarker_Y:N", title="", sort=biomarkers),
+            color=alt.Color(
+                "Correlation:Q",
+                title="r",
+                scale=alt.Scale(domain=[-1, 0, 1], range=["#b2182b", "#f7f7f7", "#2166ac"]),
+            ),
+            opacity=alt.condition(selection, alt.value(1.0), alt.value(0.7)),
+            tooltip=[
+                alt.Tooltip("Biomarker_X:N", title="X biomarker"),
+                alt.Tooltip("Biomarker_Y:N", title="Y biomarker"),
+                alt.Tooltip("Correlation:Q", title="r", format=".2f"),
+            ],
+        )
+        .add_params(selection)
+        .properties(height=350)
+    )
+
+    st.markdown("**Correlation heatmap (click a cell to see the scatterplot below)**")
+    st.altair_chart(heatmap, use_container_width=True)
+
+    # Scatter: filter by selected pair
+    scatter = (
+        alt.Chart(long_df)
+        .transform_filter(selection)
+        .mark_circle(size=40, opacity=0.5)
+        .encode(
+            x=alt.X("x_value:Q", title="Biomarker X value"),
+            y=alt.Y("y_value:Q", title="Biomarker Y value"),
+            tooltip=[
+                alt.Tooltip("Biomarker_X:N", title="X biomarker"),
+                alt.Tooltip("Biomarker_Y:N", title="Y biomarker"),
+                alt.Tooltip("x_value:Q", title="X value", format=".2f"),
+                alt.Tooltip("y_value:Q", title="Y value", format=".2f"),
+            ],
+        )
+        .properties(height=300)
+    )
+
+    st.markdown("**Selected pair: detailed scatterplot**")
+    st.altair_chart(scatter, use_container_width=True)
+
 
 # -----------------------------
 # Main app
@@ -481,6 +664,9 @@ if filtered.empty:
 
 # ---- First Graph section (Shu) ----
 age_stratified_section(filtered)
+
+# ---- Second Graph section (Shu) ----
+correlation_matrix_section(filtered)
 
 
 
