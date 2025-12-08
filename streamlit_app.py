@@ -793,6 +793,325 @@ else:
     st.caption("Select one or more conditions above to compare their metabolic marker distributions.")
 
 
+# -----------------------------------------------
+# 4. Biomarker progression across the lifespan
+# -----------------------------------------------
+
+st.markdown("#### 4. Biomarker trends across age with clinical thresholds")
+
+selected_biomarker_age = st.selectbox(
+    "Select a biomarker to view age trends",
+    options=METABOLIC_COLS,
+    index=0,
+    format_func=nice_label,
+    key="task4_biomarker"
+)
+
+# Default clinical thresholds for different biomarkers
+DEFAULT_THRESHOLDS = {
+    "LDL_Cholesterol": [
+        {"value": 100, "label": "Optimal", "color": "#2ecc71"},
+        {"value": 130, "label": "Borderline High", "color": "#f39c12"},
+        {"value": 160, "label": "High", "color": "#e74c3c"}
+    ],
+    "HDL_Cholesterol": [
+        {"value": 40, "label": "Low (men)", "color": "#e74c3c"},
+        {"value": 50, "label": "Low (women)", "color": "#f39c12"},
+        {"value": 60, "label": "Protective", "color": "#2ecc71"}
+    ],
+    "Systolic_BP_Average": [
+        {"value": 120, "label": "Normal", "color": "#2ecc71"},
+        {"value": 130, "label": "Elevated", "color": "#f39c12"},
+        {"value": 140, "label": "Stage 1 HTN", "color": "#e67e22"},
+        {"value": 180, "label": "Stage 2 HTN", "color": "#e74c3c"}
+    ],
+    "Diastolic_BP_Average": [
+        {"value": 80, "label": "Normal", "color": "#2ecc71"},
+        {"value": 90, "label": "Stage 1 HTN", "color": "#e67e22"},
+        {"value": 120, "label": "Stage 2 HTN", "color": "#e74c3c"}
+    ],
+    "Serum_Glucose": [
+        {"value": 100, "label": "Normal", "color": "#2ecc71"},
+        {"value": 126, "label": "Prediabetes", "color": "#f39c12"},
+        {"value": 200, "label": "Diabetes", "color": "#e74c3c"}
+    ],
+    "Glycohemoglobin": [
+        {"value": 5.7, "label": "Normal", "color": "#2ecc71"},
+        {"value": 6.5, "label": "Prediabetes", "color": "#f39c12"},
+        {"value": 10, "label": "Diabetes", "color": "#e74c3c"}
+    ],
+    "BMI": [
+        {"value": 18.5, "label": "Underweight", "color": "#3498db"},
+        {"value": 25, "label": "Normal", "color": "#2ecc71"},
+        {"value": 30, "label": "Overweight", "color": "#f39c12"},
+        {"value": 40, "label": "Obese", "color": "#e74c3c"}
+    ],
+    "Waist_Circumference": [
+        {"value": 88, "label": "High risk (women)", "color": "#f39c12"},
+        {"value": 102, "label": "High risk (men)", "color": "#e74c3c"}
+    ],
+    "Triglycerides": [
+        {"value": 150, "label": "Normal", "color": "#2ecc71"},
+        {"value": 200, "label": "Borderline High", "color": "#f39c12"},
+        {"value": 500, "label": "High", "color": "#e74c3c"}
+    ],
+    "Total_Cholesterol": [
+        {"value": 200, "label": "Desirable", "color": "#2ecc71"},
+        {"value": 240, "label": "Borderline High", "color": "#f39c12"},
+        {"value": 300, "label": "High", "color": "#e74c3c"}
+    ],
+    "Creatinine": [
+        {"value": 0.7, "label": "Low normal", "color": "#3498db"},
+        {"value": 1.3, "label": "Normal", "color": "#2ecc71"},
+        {"value": 1.5, "label": "Elevated", "color": "#f39c12"}
+    ],
+    "Uric_Acid": [
+        {"value": 4, "label": "Normal lower", "color": "#2ecc71"},
+        {"value": 7, "label": "Normal upper (men)", "color": "#f39c12"},
+        {"value": 6, "label": "Normal upper (women)", "color": "#f39c12"}
+    ],
+    "Hemoglobin": [
+        {"value": 12, "label": "Low (women)", "color": "#e74c3c"},
+        {"value": 13.5, "label": "Low (men)", "color": "#f39c12"},
+        {"value": 17.5, "label": "Normal upper", "color": "#2ecc71"}
+    ],
+    "Hematocrit": [
+        {"value": 36, "label": "Low (women)", "color": "#e74c3c"},
+        {"value": 39, "label": "Low (men)", "color": "#f39c12"},
+        {"value": 50, "label": "Normal upper", "color": "#2ecc71"}
+    ],
+    "WBC_Count": [
+        {"value": 4.5, "label": "Low", "color": "#3498db"},
+        {"value": 11, "label": "Normal upper", "color": "#2ecc71"},
+        {"value": 15, "label": "Elevated", "color": "#e74c3c"}
+    ],
+    "Platelet_Count": [
+        {"value": 150, "label": "Low", "color": "#e74c3c"},
+        {"value": 400, "label": "Normal upper", "color": "#2ecc71"},
+        {"value": 450, "label": "Elevated", "color": "#f39c12"}
+    ]
+}
+
+st.markdown("##### Customize clinical thresholds (optional)")
+with st.expander("Adjust thresholds for selected biomarker"):
+    if selected_biomarker_age in DEFAULT_THRESHOLDS:
+        st.caption(f"Adjust thresholds for **{nice_label(selected_biomarker_age)}**")
+        
+        # Allow users to modify thresholds
+        custom_thresholds = []
+        default_thresholds = DEFAULT_THRESHOLDS[selected_biomarker_age]
+        
+        num_thresholds = st.number_input(
+            "Number of thresholds",
+            min_value=0,
+            max_value=6,
+            value=len(default_thresholds),
+            key="num_thresholds"
+        )
+        
+        if num_thresholds > 0:
+            cols = st.columns(3)
+            for i in range(num_thresholds):
+                default = default_thresholds[i] if i < len(default_thresholds) else {"value": 0, "label": f"Threshold {i+1}", "color": "#95a5a6"}
+                
+                with cols[0]:
+                    value = st.number_input(
+                        f"Value {i+1}",
+                        value=float(default["value"]),
+                        key=f"threshold_val_{i}",
+                        format="%.2f"
+                    )
+                with cols[1]:
+                    label = st.text_input(
+                        f"Label {i+1}",
+                        value=default["label"],
+                        key=f"threshold_label_{i}"
+                    )
+                with cols[2]:
+                    color = st.color_picker(
+                        f"Color {i+1}",
+                        value=default["color"],
+                        key=f"threshold_color_{i}"
+                    )
+                
+                custom_thresholds.append({"value": value, "label": label, "color": color})
+        
+        CLINICAL_THRESHOLDS = {selected_biomarker_age: custom_thresholds} if custom_thresholds else {}
+    else:
+        st.info(f"No default thresholds defined for {nice_label(selected_biomarker_age)}. You can add custom thresholds below.")
+        
+        num_thresholds = st.number_input(
+            "Number of thresholds to add",
+            min_value=0,
+            max_value=6,
+            value=0,
+            key="num_custom_thresholds"
+        )
+        
+        custom_thresholds = []
+        if num_thresholds > 0:
+            cols = st.columns(3)
+            for i in range(num_thresholds):
+                with cols[0]:
+                    value = st.number_input(
+                        f"Value {i+1}",
+                        value=0.0,
+                        key=f"custom_threshold_val_{i}",
+                        format="%.2f"
+                    )
+                with cols[1]:
+                    label = st.text_input(
+                        f"Label {i+1}",
+                        value=f"Threshold {i+1}",
+                        key=f"custom_threshold_label_{i}"
+                    )
+                with cols[2]:
+                    color = st.color_picker(
+                        f"Color {i+1}",
+                        value="#95a5a6",
+                        key=f"custom_threshold_color_{i}"
+                    )
+                
+                custom_thresholds.append({"value": value, "label": label, "color": color})
+        
+        CLINICAL_THRESHOLDS = {selected_biomarker_age: custom_thresholds} if custom_thresholds else {}
+
+# If no custom thresholds were set, use defaults
+if selected_biomarker_age not in CLINICAL_THRESHOLDS and selected_biomarker_age in DEFAULT_THRESHOLDS:
+    CLINICAL_THRESHOLDS = {selected_biomarker_age: DEFAULT_THRESHOLDS[selected_biomarker_age]}
+
+
+
+age_data = filtered[["Age", selected_biomarker_age, "Gender"]].dropna()
+
+if age_data.empty:
+    st.warning("No data available for the selected biomarker and current filters.")
+else:
+    st.caption(f"**Age trend analysis for {nice_label(selected_biomarker_age)}**")
+    total_n = len(age_data)
+    male_n = len(age_data[age_data["Gender"] == "Male"])
+    female_n = len(age_data[age_data["Gender"] == "Female"])
+    st.caption(f"Total participants: {total_n} (Male: {male_n}, Female: {female_n})")
+    
+    charts = []
+    
+    for gender in ["Male", "Female"]:
+        gender_data = age_data[age_data["Gender"] == gender].copy()
+        
+        if gender_data.empty:
+            continue
+        
+        gender_data = gender_data.sort_values("Age")
+        
+       
+        scatter = alt.Chart(gender_data).mark_circle(
+            opacity=0.1,
+            size=20
+        ).encode(
+            x=alt.X("Age:Q", title="Age (years)", scale=alt.Scale(domain=[20, 80])),
+            y=alt.Y(f"{selected_biomarker_age}:Q", title=nice_label(selected_biomarker_age))
+        )
+        
+        median_line = alt.Chart(gender_data).mark_line(
+            size=3
+        ).transform_loess(
+            "Age",
+            selected_biomarker_age,
+            bandwidth=0.3  
+        ).encode(
+            x=alt.X("Age:Q"),
+            y=alt.Y(f"{selected_biomarker_age}:Q"),
+            color=alt.value("#ff69b4" if gender == "Female" else "#1f77b4")
+        )
+        
+        
+        band_data = gender_data.copy()
+        
+        p10_line = alt.Chart(gender_data).mark_line(
+            opacity=0
+        ).transform_quantile_regression(
+            "Age",
+            selected_biomarker_age,
+            quantile=0.1
+        ).encode(
+            x=alt.X("Age:Q"),
+            y=alt.Y(f"{selected_biomarker_age}:Q")
+        )
+        
+        p90_line = alt.Chart(gender_data).mark_line(
+            opacity=0
+        ).transform_quantile_regression(
+            "Age",
+            selected_biomarker_age,
+            quantile=0.9
+        ).encode(
+            x=alt.X("Age:Q"),
+            y=alt.Y(f"{selected_biomarker_age}:Q")
+        )
+        
+        window_size = max(20, len(gender_data) // 20)  
+        gender_data_sorted = gender_data.sort_values("Age")
+        gender_data_sorted["P10"] = gender_data_sorted[selected_biomarker_age].rolling(
+            window=window_size, center=True, min_periods=5
+        ).quantile(0.1)
+        gender_data_sorted["P90"] = gender_data_sorted[selected_biomarker_age].rolling(
+            window=window_size, center=True, min_periods=5
+        ).quantile(0.9)
+        
+        band = alt.Chart(gender_data_sorted).mark_area(
+            opacity=0.2
+        ).encode(
+            x=alt.X("Age:Q"),
+            y=alt.Y("P10:Q", title=nice_label(selected_biomarker_age)),
+            y2=alt.Y2("P90:Q"),
+            color=alt.value("#ff69b4" if gender == "Female" else "#1f77b4")
+        )
+        
+        threshold_layers = []
+        if selected_biomarker_age in CLINICAL_THRESHOLDS:
+            for threshold in CLINICAL_THRESHOLDS[selected_biomarker_age]:
+                threshold_line = alt.Chart(pd.DataFrame({
+                    "threshold": [threshold["value"]],
+                    "label": [threshold["label"]]
+                })).mark_rule(
+                    strokeDash=[5, 5],
+                    opacity=0.7,
+                    size=2
+                ).encode(
+                    y=alt.Y("threshold:Q"),
+                    color=alt.value(threshold["color"]),
+                    tooltip=alt.Tooltip("label:N", title="Clinical threshold")
+                )
+                threshold_layers.append(threshold_line)
+        
+        chart = band + median_line
+        for tl in threshold_layers:
+            chart = chart + tl
+        
+        chart = chart.properties(
+            width=350,
+            height=400,
+            title=f"{gender}"
+        )
+        
+        charts.append(chart)
+    
+    if len(charts) == 2:
+        combined_chart = alt.hconcat(*charts).resolve_scale(y="shared")
+        st.altair_chart(combined_chart, use_container_width=True)
+    elif len(charts) == 1:
+        st.altair_chart(charts[0], use_container_width=True)
+    
+    if selected_biomarker_age in CLINICAL_THRESHOLDS:
+        st.caption("**Clinical thresholds:**")
+        threshold_text = " | ".join([
+            f"{t['label']}: {t['value']}" for t in CLINICAL_THRESHOLDS[selected_biomarker_age]
+        ])
+        st.caption(threshold_text)
+        
+        st.caption("*Thresholds based on clinical guidelines (AHA, ADA, ACC, CDC, WHO). Individual risk assessment should consider multiple factors.*")
+
+
 
 
 # -----------------------------
