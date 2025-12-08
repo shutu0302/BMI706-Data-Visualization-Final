@@ -892,6 +892,9 @@ DEFAULT_THRESHOLDS = {
     ]
 }
 
+CLINICAL_THRESHOLDS = DEFAULT_THRESHOLDS.copy()
+
+
 st.markdown("##### Customize clinical thresholds (optional)")
 with st.expander("Adjust thresholds for selected biomarker"):
     if selected_biomarker_age in DEFAULT_THRESHOLDS:
