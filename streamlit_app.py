@@ -756,9 +756,9 @@ if selected_outcomes:
             for cond in selected_outcomes:
                 cond_nice = nice_label(cond)
                 with_cond = subset_long[(subset_long["Condition"] == cond_nice) & 
-                                       (subset_long["Status"] == "With condition")][cm_y_var]
+                                       (subset_long["Status"] == "With condition")][selected_biomarker]
                 without_cond = subset_long[(subset_long["Condition"] == cond_nice) & 
-                                          (subset_long["Status"] == "Without condition")][cm_y_var]
+                                          (subset_long["Status"] == "Without condition")][selected_biomarker]
                 
                 if len(with_cond) > 0 and len(without_cond) > 0:
                     st.caption(
