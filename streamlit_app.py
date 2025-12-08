@@ -694,22 +694,9 @@ correlation_matrix_section(filtered)
 
 st.markdown("#### 3. Metabolic marker levels in selected disease groups")
 
-available_biomarkers = [
-    "BMI",
-    "Total_Cholesterol",
-    "HDL_Cholesterol",
-    "LDL_Cholesterol",
-    "Triglycerides",
-    "Serum_Glucose",
-    "Glycohemoglobin",
-    "Systolic_BP_Average",
-    "Diastolic_BP_Average",
-]
-available_biomarkers = [b for b in available_biomarkers if b in METABOLIC_COLS]
-
 selected_biomarker = st.selectbox(
     "Select a biomarker to compare",
-    options=available_biomarkers if available_biomarkers else METABOLIC_COLS,
+    options=METABOLIC_COLS,
     default=METABOLIC_COLS[0],
     format_func=nice_label,
     key="task3_biomarker"
