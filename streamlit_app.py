@@ -204,17 +204,52 @@ def prevalence_table(df: pd.DataFrame) -> pd.DataFrame:
     return prev_df.sort_values("Prevalence (%)", ascending=False)
 
 
+
+
+# -----------------------------
+# New from Shu:
+# -----------------------------
+
+
 # -----------------------------
 # Main app
 # -----------------------------
+df = load_data(DATA_PATH)
+
+st.title("Cardiometabolic Risk Explorer Dashboard")
+st.markdown(
+    """
+Interactive dashboard to explore how age, sex, lifestyle behaviours and biomarkers 
+relate to cardiometabolic risk and multimorbidity.
+    
+1. Age-stratified risk-factor section:
+    Visualizes how risk factors change with age and relate to cardiometabolic health.
+
+2. Correlation matrix of biomarkers:
+    Examines pairwise correlations among metabolic and cardiovascular biomarkers, with filters for age, sex, and disease state.
+
+3. Disease prevalence summary:
+    Summarizes comorbidity prevalence under current filters.
+
+4. Metabolic markers across comorbidity levels:
+    Compares metabolic markers across varying comorbidity burdens.
+
+5. Comorbidity / disease prevalence by lifestyle:
+    Shows how comorbidity prevalence shifts across lifestyle patterns.   
+"""
+)
+
+filtered = apply_filters(df)
+st.markdown(f"### Current selection: {len(filtered):,} participants")
+
+if filtered.empty:
+    st.warning("No participants match the current filter settings. Try relaxing your filters.")
+    st.stop()
+
 
 
 # -----------------------------
-# New from Shu: Age-stratified risk-factor section
-# -----------------------------
-
-# -----------------------------
-# 1. Age-stratified risk-factor section
+# 1. Age-stratified risk-factor section (Shu)
 # -----------------------------
 
 def add_age_band_column(df: pd.DataFrame, band_width: int = 10) -> pd.DataFrame:
@@ -459,7 +494,7 @@ def age_stratified_section(filtered: pd.DataFrame) -> None:
         st.altair_chart(corr_chart, use_container_width=True)
 
 # -----------------------------
-# 2. Correlation matrix of biomarkers
+# 2. Correlation matrix of biomarkers (Shu)
 # -----------------------------
 def correlation_matrix_section(filtered: pd.DataFrame) -> None:
     st.subheader("Correlation matrix of biomarkers")
@@ -639,28 +674,6 @@ def correlation_matrix_section(filtered: pd.DataFrame) -> None:
     st.altair_chart(scatter, use_container_width=True)
 
 
-# -----------------------------
-# Main app
-# -----------------------------
-df = load_data(DATA_PATH)
-
-st.title("Lifestyle & Comorbidity Explorer")
-st.markdown(
-    """
-This dashboard lets you interactively explore how **lifestyle behaviours**  
-(smoking, sleep, physical activity, alcohol) and **demographics** relate to:
-
-- Metabolic and cardiometabolic markers (BMI, lipids, glucose, blood pressure, etc.)
-- Prevalence and burden of chronic conditions (heart attack, diabetes, stroke, COPD, etc.)
-"""
-)
-
-filtered = apply_filters(df)
-st.markdown(f"### Current selection: {len(filtered):,} participants")
-
-if filtered.empty:
-    st.warning("No participants match the current filter settings. Try relaxing your filters.")
-    st.stop()
 
 # ---- First Graph section (Shu) ----
 age_stratified_section(filtered)
