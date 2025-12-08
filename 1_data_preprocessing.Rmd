@@ -1,0 +1,643 @@
+---
+title: "Data Preprocessing"
+author: "Kathy Liu"
+date: "2025-12-7"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Preprocessing
+
+------------------------------------------------------------------------
+
+## 1. Exploratory Data Analysis
+
+
+### 1.0 Load Packages
+```{r message=FALSE, warning=FALSE}
+load_packages <- function(pkgs) {
+  missing <- setdiff(pkgs, rownames(installed.packages()))
+  if (length(missing)) install.packages(missing, dependencies = TRUE)
+
+  pkgs_ordered <- if ("dplyr" %in% pkgs) c(setdiff(pkgs, "dplyr"), "dplyr") else pkgs
+
+  invisible(lapply(pkgs_ordered, function(p) {
+    suppressPackageStartupMessages(library(p, character.only = TRUE))
+  }))
+
+  if (!requireNamespace("conflicted", quietly = TRUE)) install.packages("conflicted")
+  suppressPackageStartupMessages(library(conflicted))
+  conflict_prefer("select", "dplyr")
+  conflict_prefer("filter", "dplyr")
+  conflict_prefer("rename", "dplyr")
+  conflict_prefer("lag",    "dplyr")
+  invisible(TRUE)
+}
+
+packages <- c(
+  "tidyr","janitor","naniar","dplyr","skimr","magrittr","forcats","car","tibble","knitr","data.table",
+  "mice",
+  "ggplot2","GGally","patchwork","corrplot","ggcorrplot","scales","rpart.plot",
+  "glmnet","glmtoolbox","caret","randomForest","xgboost","rpart",
+  "pROC","yardstick","DescTools","probably","tableone",
+  "htmlTable","htmltools","webshot"
+)
+
+load_packages(packages)
+
+```
+
+
+
+### 1.1 Data Overview
+```{r}
+# Covariates 
+cov_load <- load("/Users/spectremac/Desktop/BMI706/Final_Project/covariate_df.rData")
+cov_data <- get(cov_load[1])
+cov_data <- as.data.frame(cov_data)
+
+# Questionnaire (for outcome variables)
+quest_data <- fread("/Users/spectremac/Desktop/BMI706/Final_Project/questionnaire.csv")|> as.data.frame()
+```
+
+
+### 1.2 Extract and rename variables
+```{r}
+# Select variables
+## covariate df
+cov_data <- cov_data |> 
+  select(
+    SEQN,
+    
+    # Demographics
+    RIDAGEYR,   # Age in years
+    RIAGENDR,   # Gender
+    RIDRETH1,   # Race/Ethnicity
+    DMDEDUC2,   # Education level
+    INDFMPIR,   # Family income to poverty ratio
+
+    # Blood Pressure & Anthropometry
+    BPXSY1,     # Systolic blood pressure (1st reading)
+    BPXSY2,     # Systolic blood pressure (2nd reading)
+    BPXDI1,     # Diastolic blood pressure (1st reading)
+    BPXDI2,     # Diastolic blood pressure (2nd reading)
+    BMXBMI,     # Body Mass Index (kg/m²)
+    BMXWAIST,   # Waist circumference (cm)
+    BPXSY3,     # Systolic blood pressure (3rd reading)
+    BPXDI3,     # Diastolic blood pressure (3rd reading)
+
+    # Blood Lipids & Glycemic Markers
+    LBXTC,      # Total cholesterol (mg/dL)
+    LBDHDD,     # Direct HDL cholesterol (mg/dL)
+    LBDLDL,     # LDL cholesterol (mg/dL)
+    LBXTR,      # Triglycerides (mg/dL)
+    LBXSGL,     # Glucose (serum, mg/dL)
+    LBXGH,      # Glycohemoglobin (HbA1c)
+
+    # Additional Lab Biomarkers
+    LBXPLTSI,   # Platelet count
+    LBXHGB,     # Hemoglobin
+    LBXHCT,     # Hematocrit
+    LBXSATSI,   # Iron saturation (%)
+    LBXSIR,     # Serum iron
+    LBXSCR,     # Creatinine
+    LBXSUA,     # Uric acid
+    LBXWBCSI    # White blood cell count
+  )
+
+
+## questionnaire df
+quest_data <- quest_data |>
+  select(
+    SEQN,
+    
+    # Outcome
+    DIQ010, # diabetes
+    MCQ160F, # stroke
+    MCQ082, # celiac disease
+    MCQ160A, # arthritis
+    MCQ160E, # heart attack
+    MCQ160L, # liver disease
+    MCQ010, # asthma
+    MCQ160O, # COPD
+    
+    # Others
+    BPQ020,    # Ever told had high blood pressure
+    BPQ080,    # Currently taking BP medication
+    SMD057,    # Cigarettes per day
+    PAD615,    # Vigorous physical activity per day
+    PAD630,    # Moderate physical activity per day
+    SLD010H,   # Sleep hours
+    ALQ130,    # Alcohol intake (past 12 months)
+  )
+```
+
+
+### 1.3 Merge dataframe
+
+```{r}
+# merge datasets
+raw_data <- cov_data|>
+  left_join(quest_data, by = 'SEQN')
+```
+
+
+```{r}
+#summary(raw_data)
+```
+
+
+### 1.4 Replace extreme, unknown, refused to answer value with NA
+
+```{r}
+# replace extreme values with NAs
+raw_data <- raw_data |>
+  mutate(
+    SMD057 = na_if(SMD057, 999),
+    PAD615 = na_if(PAD615, 9999),
+    PAD630 = na_if(PAD630, 9999),
+    SLD010H = na_if(SLD010H, 99),
+    ALQ130 = na_if(ALQ130, 999)
+  )
+
+# replace extreme blood pressure values with NAs
+raw_data <- raw_data |>
+  mutate(
+    BPXDI1 = na_if(BPXDI1, 0),
+    BPXDI2 = na_if(BPXDI2, 0),
+    BPXDI3 = na_if(BPXDI3, 0),
+    BPXSY1 = na_if(BPXSY1, 0),
+    BPXSY2 = na_if(BPXSY2, 0),
+    BPXSY3 = na_if(BPXSY3, 0)
+  )
+
+# replace implausible HDL, LDL, and total cholesterol with NAs
+raw_data <- raw_data |>
+  mutate(
+    LBDHDD = ifelse(
+      LBDHDD < 10 | LBDHDD > 100,
+      NA_real_,
+      LBDHDD
+    ),
+    LBXTC = ifelse(
+      LBXTC < 100 | LBXTC > 500,
+      NA_real_,
+      LBXTC
+    ),
+    LBDLDL = ifelse(
+      LBDLDL < 30 | LBDLDL > 300,
+      NA_real_,
+      LBDLDL
+    )
+  )
+
+# replace (77, 99, 9, 7) with NAs 
+raw_data <- raw_data|>
+  mutate(across(
+    .cols = c(MCQ160E,
+              DMDEDUC2,
+              BPQ020,
+              BPQ080,
+              SLD010H,
+              DIQ010, # diabetes 
+              MCQ160F, # stroke
+              MCQ082, # celiac disease
+              MCQ160A, # arthritis
+              MCQ160L, # liver disease
+              MCQ010, # asthma
+              MCQ160O), # COPD
+    ~ replace(., . %in% c(77, 99, 9, 7), NA)
+  ))
+```
+
+
+### 1.5 Convert Variable Type
+
+```{r}
+# define factor and numeric variables
+
+factor_vars <- c(
+  "MCQ160E",   # Ever told had a heart attack (1 = Yes, 2 = No)
+  "DIQ010",    # Diabetes (1 = Yes, 2 = No)
+  "MCQ160F",   # stroke (1 = Yes, 2 = No)
+  "MCQ082",    # celiac disease (1 = Yes, 2 = No)
+  "MCQ160A",   # arthritis (1 = Yes, 2 = No)
+  "MCQ160E",   # heart attack (1 = Yes, 2 = No)
+  "MCQ160L",   # liver disease (1 = Yes, 2 = No)
+  "MCQ010",    # asthma (1 = Yes, 2 = No)
+  "MCQ160O",   # COPD (1 = Yes, 2 = No)
+  
+  "RIAGENDR",  # Gender (1 = Male, 2 = Female)
+  "RIDRETH1",  # Race/ethnicity (categorical)
+  "DMDEDUC2",  # Education level (e.g., <HS, HS, College)
+  "BPQ020",    # Ever told had high blood pressure (1 = Yes, 2 = No)
+  "BPQ080"    # Currently taking BP meds (1 = Yes, 2 = No)
+)
+
+
+num_vars <- c(
+  "SMD057",    # Cigarettes per day 
+  "PAD615",    # Vigorous physical activity minutes 
+  "PAD630",    # Moderate physical activity minutes 
+  "ALQ130",     # Alcohol use past year (frequency; ordinal categorical)
+  "SLD010H",   # Hours of sleep on weekday/weekend night
+  "RIDAGEYR",  # Age
+  "INDFMPIR",  # Income-to-poverty ratio
+  "BPXSY1", "BPXSY2", "BPXSY3",  # Systolic
+  "BPXDI1", "BPXDI2", "BPXDI3",  # Diastolic
+  "BMXBMI",     # Body Mass Index
+  "BMXWAIST",   # Waist circumference
+  "LBXTC",      # Total cholesterol
+  "LBDHDD",     # HDL cholesterol
+  "LBDLDL",     # LDL cholesterol
+  "LBXTR",      # Triglycerides
+  "LBXSGL",     # Glucose (serum)
+  "LBXGH",      # Glycohemoglobin
+  "LBXPLTSI",   # Platelet count
+  "LBXHGB",     # Hemoglobin
+  "LBXHCT",     # Hematocrit
+  "LBXSATSI",   # Iron saturation
+  "LBXSIR",     # Serum iron
+  "LBXSCR",     # Creatinine
+  "LBXSUA",     # Uric acid
+  "LBXWBCSI"    # White blood cell count
+)
+
+```
+
+
+```{r}
+# convert variable type
+raw_data <- raw_data|>
+  mutate(across(all_of(factor_vars), as.factor))
+```
+
+
+### 1.6 Remove participants with missing values for outcome variables
+
+```{r}
+# Vector of outcome variables
+outcomes <- c(
+  "DIQ010",   # diabetes
+  "MCQ160F",  # stroke
+  "MCQ082",   # celiac disease
+  "MCQ160A",  # arthritis
+  "MCQ160E",  # heart attack
+  "MCQ160L",  # liver disease
+  "MCQ010",   # asthma
+  "MCQ160O"   # COPD
+)
+
+# Remove rows with ANY NA in those outcomes + reorder columns
+raw_data <- raw_data |>
+  filter(if_all(all_of(outcomes), ~ !is.na(.x))) |>
+  select(SEQN, all_of(outcomes), everything())
+
+dim(raw_data)
+
+```
+
+
+### 1.7 Rename variables
+
+```{r}
+# rename variable names
+raw_data <- raw_data |>
+  rename(
+    id_seqn = SEQN,
+    heart_attack_mcq160e = MCQ160E,
+    diabetes_diq010 = DIQ010,
+    stroke_mcq160f = MCQ160F,
+    celiac_disease = MCQ082,
+    arthritis = MCQ160A,
+    liver_disease = MCQ160L,
+    asthma = MCQ010,
+    COPD = MCQ160O,
+    
+    age_ridageyr = RIDAGEYR,
+    gender_riagendr = RIAGENDR,
+    ethnicity_ridreth1 = RIDRETH1,
+    education_level_dmdeduc2 = DMDEDUC2,
+    income_to_poverty_ratio_indfmpir = INDFMPIR,
+
+    systolic_bp_1_bpxsy1 = BPXSY1,
+    systolic_bp_2_bpxsy2 = BPXSY2,
+    systolic_bp_3_bpxsy3 = BPXSY3,
+
+    diastolic_bp_1_bpxdi1 = BPXDI1,
+    diastolic_bp_2_bpxdi2 = BPXDI2,
+    diastolic_bp_3_bpxdi3 = BPXDI3,
+
+    bmi_bmxbmi = BMXBMI,
+    waist_circumference_bmxwaist = BMXWAIST,
+
+    total_cholesterol_lbxtc = LBXTC,
+    hdl_cholesterol_lbdhdd = LBDHDD,
+    ldl_cholesterol_lbdldl = LBDLDL,
+    triglycerides_lbxtr = LBXTR,
+    serum_glucose_lbxsgl = LBXSGL,
+    glycohemoglobin_lbxgh = LBXGH,
+
+    platelet_count_lbxpltsi = LBXPLTSI,
+    hemoglobin_lbxhgb = LBXHGB,
+    hematocrit_lbxhct = LBXHCT,
+    iron_saturation_lbxsatsi = LBXSATSI,
+    serum_iron_lbxsir = LBXSIR,
+    creatinine_lbxscr = LBXSCR,
+    uric_acid_lbxsua = LBXSUA,
+    wbc_count_lbxwbcsi = LBXWBCSI,
+
+    told_had_high_bp_bpq020 = BPQ020,
+    taking_bp_meds_bpq080 = BPQ080,
+
+    cigarettes_per_day_smd057 = SMD057,
+    vigorous_physical_activity_min_pad615 = PAD615,
+    moderate_physical_activity_min_pad630 = PAD630,
+
+    sleep_hours_sld010h = SLD010H,
+    alcohol_use_frequency_alq130 = ALQ130
+  )
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# rename factor variable levels
+raw_data <- raw_data |>
+  mutate(
+    heart_attack_mcq160e = fct_recode(heart_attack_mcq160e,
+                                      "Yes" = "1", "No" = "2"),
+    
+    diabetes_diq010 = fct_recode(diabetes_diq010,
+                                      "Yes" = "1", "No" = "2"),
+    
+    stroke_mcq160f = fct_recode(stroke_mcq160f,
+                                      "Yes" = "1", "No" = "2"),
+    
+    celiac_disease = fct_recode(celiac_disease,
+                                      "Yes" = "1", "No" = "2"),
+    
+    arthritis = fct_recode(arthritis,
+                                      "Yes" = "1", "No" = "2"),
+    
+    liver_disease = fct_recode(liver_disease,
+                                      "Yes" = "1", "No" = "2"),
+    
+    asthma = fct_recode(asthma,
+                                      "Yes" = "1", "No" = "2"),
+    
+    COPD = fct_recode(COPD,
+                                      "Yes" = "1", "No" = "2"),
+
+    gender_riagendr = fct_recode(gender_riagendr,
+                                 "Male" = "1", "Female" = "2"),
+
+    ethnicity_ridreth1 = fct_recode(ethnicity_ridreth1,
+                                    "Mexican_American" = "1",
+                                    "Other_Hispanic" = "2",
+                                    "Non_Hispanic_White" = "3",
+                                    "Non_Hispanic_Black" = "4",
+                                    "Other_Race" = "5"),
+
+    education_level_dmdeduc2 = fct_recode(education_level_dmdeduc2,
+                                          "<9th_Grade" = "1",
+                                          "9-11th_Grade" = "2",
+                                          "High_School_GED" = "3",
+                                          "Some_College_AA" = "4",
+                                          "College_Grad_or_Above" = "5"),
+
+    told_had_high_bp_bpq020 = fct_recode(told_had_high_bp_bpq020,
+                                         "Yes" = "1", "No" = "2"),
+
+    taking_bp_meds_bpq080 = fct_recode(taking_bp_meds_bpq080,
+                                       "Yes" = "1", "No" = "2")
+
+  )
+```
+
+
+```{r}
+# re-order to make all factor variables be in front
+factor_vars_order <- c(
+  "id_seqn",
+  "heart_attack_mcq160e",
+  "diabetes_diq010",
+  "stroke_mcq160f",
+  "celiac_disease",
+  "arthritis",
+  "liver_disease",
+  "asthma",
+  "COPD",
+  "age_ridageyr",
+  "gender_riagendr",
+  "ethnicity_ridreth1",
+  "education_level_dmdeduc2",
+  "told_had_high_bp_bpq020",
+  "taking_bp_meds_bpq080"
+)
+
+other_vars <- setdiff(colnames(raw_data), factor_vars_order)
+
+raw_data <- raw_data[, c(factor_vars_order, other_vars)]
+```
+
+
+### 1.8 Missingness examination before data imputation
+
+```{r}
+#rename some variables
+raw_data_na_tbl <- miss_var_summary(raw_data)|>
+  as.data.frame()|>
+  rename("Missing Count" = "n_miss",
+         "Variable" = "variable",
+         "Missing Percentage (%)" = "pct_miss")
+kable(raw_data_na_tbl, caption = 'Missing Value Summary Before Imputation')
+```
+
+
+```{r}
+# Save dataset before splitting and imputation
+#write.csv(raw_data, "/Users/spectremac/Desktop/raw_merged_data.csv")
+```
+
+
+
+### 1.9 Data Imputation: multiple imputation 
+
+
+```{r message=FALSE, warning=FALSE}
+
+# Initialize methods & predictor matrix from the raw data
+imp0 <- mice::mice(raw_data, maxit = 0, printFlag = FALSE)
+method <- imp0$method
+pred   <- imp0$predictorMatrix
+
+outcomes <- c(
+  "heart_attack_mcq160e",
+  "diabetes_diq010",
+  "stroke_mcq160f",
+  "celiac_disease",
+  "arthritis",
+  "liver_disease",
+  "asthma",
+  "COPD"
+)
+
+method[c("id_seqn", outcomes)] <- ""
+pred[, c("id_seqn", outcomes)] <- 0
+
+
+# Keep BP collinearity tweak
+systolic_vars  <- c("systolic_bp_1_bpxsy1", "systolic_bp_2_bpxsy2", "systolic_bp_3_bpxsy3")
+diastolic_vars <- c("diastolic_bp_1_bpxdi1","diastolic_bp_2_bpxdi2","diastolic_bp_3_bpxdi3")
+for (v in systolic_vars)  pred[v, setdiff(systolic_vars,  v)] <- 0
+for (v in diastolic_vars) pred[v, setdiff(diastolic_vars, v)] <- 0
+
+
+imp <- mice::mice(
+  raw_data,
+  m               = 5,
+  method          = method,
+  predictorMatrix = pred,
+  seed            = 123,
+  maxit           = 5,
+  printFlag       = FALSE
+)
+
+# Missingness summary 
+imp_long_na_tbl <- naniar::miss_var_summary(mice::complete(imp, action = "long")) %>%
+  as.data.frame() %>%
+  dplyr::rename("Missing Count" = "n_miss",
+                "Variable"      = "variable",
+                "Missing Percentage (%)" = "pct_miss")
+knitr::kable(imp_long_na_tbl, caption = "Missing Value Summary After Imputation")
+```
+
+
+
+### 1.11 Derived Variables using the combined-imputed data
+
+
+```{r}
+# Extract first completed dataset and split back
+comp1 <- mice::complete(imp, action = 1) %>% as.data.frame()
+
+```
+
+
+```{r}
+
+# Extract first imputed dataset from the whole data
+imp_data <- mice::complete(imp, action = 1) |>
+  as.data.frame()
+
+# Derive variables
+imp_data <- imp_data |>
+  mutate(
+    # Average blood pressure
+    diastolic_avg = round(
+      (diastolic_bp_1_bpxdi1 +
+         diastolic_bp_2_bpxdi2 +
+         diastolic_bp_3_bpxdi3) / 3
+    ),
+    systolic_avg = round(
+      (systolic_bp_1_bpxsy1 +
+         systolic_bp_2_bpxsy2 +
+         systolic_bp_3_bpxsy3) / 3
+    ),
+    
+    # Equate 1 min vigorous = 2 min moderate
+    # and sum into a single "equivalent minutes" variable
+    physical_activity_equiv = 
+      vigorous_physical_activity_min_pad615 * 2 +
+      moderate_physical_activity_min_pad630
+  )
+```
+
+
+```{r}
+# Rename variable names
+no_missing_data <- imp_data |>
+  rename(
+    "ID" = id_seqn,
+    "Heart_Attack" = heart_attack_mcq160e,
+    "Diabetes" = diabetes_diq010,
+    "Stroke" = stroke_mcq160f,
+    "Celiac_Disease" = celiac_disease,
+    "Arthritis" = arthritis,
+    "Liver_Disease" = liver_disease,
+    "Asthma" = asthma,
+    "COPD" = COPD,
+    
+    "Age" = age_ridageyr,
+    "Gender" = gender_riagendr,
+    "Ethnicity" = ethnicity_ridreth1,
+    "Education_Level" = education_level_dmdeduc2,
+    "Income_to_Poverty_Ratio" = income_to_poverty_ratio_indfmpir,
+
+    "BMI" = bmi_bmxbmi,
+    "Waist_Circumference" = waist_circumference_bmxwaist,
+
+    "Total_Cholesterol" = total_cholesterol_lbxtc,
+    "HDL_Cholesterol" = hdl_cholesterol_lbdhdd,
+    "LDL_Cholesterol" = ldl_cholesterol_lbdldl,
+    "Triglycerides" = triglycerides_lbxtr,
+    "Serum_Glucose" = serum_glucose_lbxsgl,
+    "Glycohemoglobin" = glycohemoglobin_lbxgh,
+
+    "Platelet_Count" = platelet_count_lbxpltsi,
+    "Hemoglobin" = hemoglobin_lbxhgb,
+    "Hematocrit" = hematocrit_lbxhct,
+    "Iron_Saturation" = iron_saturation_lbxsatsi,
+    "Serum_Iron" = serum_iron_lbxsir,
+    "Creatinine" = creatinine_lbxscr,
+    "Uric_Acid" = uric_acid_lbxsua,
+    "WBC_Count" = wbc_count_lbxwbcsi,
+
+    "Told_Had_High_BP" = told_had_high_bp_bpq020,
+    "Taking_BP_Meds" = taking_bp_meds_bpq080,
+
+    "Cigarettes_Per_Day" = cigarettes_per_day_smd057,
+
+    "Sleep_Hours" = sleep_hours_sld010h,
+    "Alcohol_Use_Frequency" = alcohol_use_frequency_alq130,
+
+    "Diastolic_BP_Average" = diastolic_avg,
+    "Systolic_BP_Average" = systolic_avg,
+    "Physical_Activity_Equivalent_Min" = physical_activity_equiv
+  )
+```
+
+
+```{r}
+# select variables in train data
+data <- no_missing_data %>%
+  select(ID, Heart_Attack, Diabetes, Stroke, Celiac_Disease, Arthritis, Liver_Disease, Asthma, COPD, Age, Gender, Ethnicity, Education_Level,
+    Income_to_Poverty_Ratio, BMI, Waist_Circumference, Total_Cholesterol, HDL_Cholesterol,
+    LDL_Cholesterol,Triglycerides, Serum_Glucose, Glycohemoglobin, Platelet_Count,
+    Hemoglobin, Hematocrit, Iron_Saturation, Serum_Iron, Creatinine,
+    Uric_Acid, WBC_Count,
+
+    Told_Had_High_BP, Taking_BP_Meds,
+
+    Cigarettes_Per_Day, Sleep_Hours, Alcohol_Use_Frequency,
+
+    Diastolic_BP_Average, Systolic_BP_Average, Physical_Activity_Equivalent_Min)
+```
+
+
+
+```{r}
+# Save dataset
+write.csv(data, "/Users/spectremac/Desktop/BMI706/Final_Project/processed_data.csv")
+```
+
+
+
