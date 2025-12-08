@@ -302,22 +302,6 @@ def age_stratified_section(filtered: pd.DataFrame) -> None:
     tmp = add_age_band_column(filtered)
     age_bands = [b for b in tmp["Age_Band"].dropna().unique().tolist()]
 
-    highlight_choice = st.selectbox(
-        "Highlight age band (optional)",
-        options=["All ages"] + age_bands,
-        index=0,
-        help="Selected band is emphasized in all plots; others are faded.",
-    )
-
-    if highlight_choice == "All ages":
-        tmp["Is_Highlighted"] = "Highlighted"
-    else:
-        # Age_Band is a categorical; compare as string
-        tmp["Is_Highlighted"] = np.where(
-            tmp["Age_Band"].astype(str) == str(highlight_choice),
-            "Highlighted",
-            "Other",
-        )
 
     # ----------------- top row: distribution by age -----------------
     top_left, top_right = st.columns(2)
