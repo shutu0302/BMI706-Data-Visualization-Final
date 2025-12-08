@@ -228,13 +228,19 @@ relate to cardiometabolic risk and multimorbidity.
 2. Correlation matrix of biomarkers:
     Examines pairwise correlations among metabolic and cardiovascular biomarkers, with filters for age, sex, and disease state.
 
-3. Disease prevalence summary:
+3. Metabolic markers across comorbidity levels:
+    Compares metabolic marker distributions between participants with and without selected conditions.
+
+4. Biomarker progression across the lifespan:
+    Shows how key biomarkers change with age, highlighting clinical risk thresholds.
+    
+5. Disease prevalence summary:
     Summarizes comorbidity prevalence under current filters.
 
-4. Metabolic markers across comorbidity levels:
+6. Metabolic markers across comorbidity levels:
     Compares metabolic markers across varying comorbidity burdens.
 
-5. Comorbidity / disease prevalence by lifestyle:
+7. Comorbidity / disease prevalence by lifestyle:
     Shows how comorbidity prevalence shifts across lifestyle patterns.   
 """
 )
@@ -799,7 +805,6 @@ else:
 
 st.markdown("#### 4. Biomarker trends across age with clinical thresholds")
 
-# Biomarker selector
 selected_biomarker_age = st.selectbox(
     "Select a biomarker to view age trends",
     options=METABOLIC_COLS,
@@ -893,7 +898,6 @@ DEFAULT_THRESHOLDS = {
     ]
 }
 
-# Initialize session state for custom thresholds (per biomarker)
 if "custom_thresholds_dict" not in st.session_state:
     st.session_state.custom_thresholds_dict = {}
 
@@ -1018,26 +1022,24 @@ with st.expander("Adjust thresholds for selected biomarker"):
             st.session_state.custom_thresholds_dict[selected_biomarker_age] = custom_thresholds
             CLINICAL_THRESHOLDS[selected_biomarker_age] = custom_thresholds
         
-        # Add clear button
         if current_custom and st.button("Clear custom thresholds", key=f"clear_thresh_{selected_biomarker_age}"):
             if selected_biomarker_age in st.session_state.custom_thresholds_dict:
                 del st.session_state.custom_thresholds_dict[selected_biomarker_age]
             st.rerun()
 
-# Filter data for valid age and biomarker values
+
+
 age_data = filtered[["Age", selected_biomarker_age, "Gender"]].dropna()
 
 if age_data.empty:
     st.warning("No data available for the selected biomarker and current filters.")
 else:
-    # Display sample sizes
     st.caption(f"**Age trend analysis for {nice_label(selected_biomarker_age)}**")
     total_n = len(age_data)
     male_n = len(age_data[age_data["Gender"] == "Male"])
     female_n = len(age_data[age_data["Gender"] == "Female"])
     st.caption(f"Total participants: {total_n} (Male: {male_n}, Female: {female_n})")
     
-    # Create side-by-side charts for Male and Female
     charts = []
     
     for gender in ["Male", "Female"]:
@@ -1046,10 +1048,8 @@ else:
         if gender_data.empty:
             continue
         
-        # Sort by age for smooth lines
         gender_data = gender_data.sort_values("Age").reset_index(drop=True)
         
-        # Calculate rolling percentiles using pandas
         window_size = max(30, len(gender_data) // 15)  # Adaptive window size
         gender_data["Median"] = gender_data[selected_biomarker_age].rolling(
             window=window_size, center=True, min_periods=10
@@ -1061,7 +1061,6 @@ else:
             window=window_size, center=True, min_periods=10
         ).quantile(0.9)
         
-        # Remove NaN values from rolling calculations
         gender_data_clean = gender_data.dropna(subset=["Median", "P10", "P90"])
         
         if gender_data_clean.empty:
@@ -1112,27 +1111,24 @@ else:
                 )
                 threshold_layers.append(threshold_line)
         
-        # Combine all layers
         chart = band + median_line
         for tl in threshold_layers:
             chart = chart + tl
         
         chart = chart.properties(
             width=350,
-            height=400,
+            height=350,
             title=f"{gender}"
         )
         
         charts.append(chart)
     
-    # Display charts side by side
     if len(charts) == 2:
         combined_chart = alt.hconcat(*charts).resolve_scale(y="shared")
         st.altair_chart(combined_chart, use_container_width=True)
     elif len(charts) == 1:
         st.altair_chart(charts[0], use_container_width=True)
     
-    # Add legend for clinical thresholds
     if selected_biomarker_age in CLINICAL_THRESHOLDS and CLINICAL_THRESHOLDS[selected_biomarker_age]:
         st.caption("**Clinical thresholds:**")
         threshold_text = " | ".join([
@@ -1140,14 +1136,8 @@ else:
         ])
         st.caption(threshold_text)
         
-        # Add source citations
         st.caption("*Thresholds based on clinical guidelines (AHA, ADA, ACC, CDC, WHO). Individual risk assessment should consider multiple factors.*")
     
-    st.caption(
-        "💡 **Interpretation:** The solid line shows the median trend across age using rolling window smoothing. "
-        "The shaded band represents the 10th-90th percentile range, showing population variability. "
-        "Dashed lines indicate clinical thresholds for risk assessment."
-    )
 
 
 
