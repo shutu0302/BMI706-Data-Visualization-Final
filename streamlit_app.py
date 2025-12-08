@@ -694,7 +694,7 @@ correlation_matrix_section(filtered)
 
 st.markdown("#### 3. Metabolic marker levels in selected disease groups")
 
-default_biomarkers = [
+available_biomarkers = [
     "BMI",
     "Total_Cholesterol",
     "HDL_Cholesterol",
@@ -705,18 +705,12 @@ default_biomarkers = [
     "Systolic_BP_Average",
     "Diastolic_BP_Average",
 ]
-default_biomarkers = [b for b in default_biomarkers if b in METABOLIC_COLS]
-
-biomarkers = st.multiselect(
-    "Biomarkers to include in visualizations",
-    options=METABOLIC_COLS,
-    default=default_biomarkers or METABOLIC_COLS[:6],
-    format_func=nice_label,
-)
+available_biomarkers = [b for b in available_biomarkers if b in METABOLIC_COLS]
 
 selected_biomarker = st.selectbox(
     "Select a biomarker to compare",
-    options=biomarkers,
+    options=available_biomarkers if available_biomarkers else METABOLIC_COLS,
+    default=METABOLIC_COLS[0],
     format_func=nice_label,
     key="task3_biomarker"
 )
@@ -724,6 +718,7 @@ selected_biomarker = st.selectbox(
 selected_outcomes = st.multiselect(
     "Select one or more conditions to compare",
     options=OUTCOME_COLS,
+    default=OUTCOME_COLS[0],
     format_func=nice_label,
 )
 
