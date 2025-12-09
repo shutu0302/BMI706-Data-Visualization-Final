@@ -780,7 +780,7 @@ with tab2:
                             alt.Tooltip("Status:N", title="Status")
                         ]
                     )
-                    .properties(height=350)
+                    .properties(height=250)
                     .facet(
                         column=alt.Column(
                             "Condition:N",
