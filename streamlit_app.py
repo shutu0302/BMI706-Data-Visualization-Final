@@ -667,9 +667,9 @@ def correlation_matrix_section(filtered: pd.DataFrame) -> None:
 # -----------------------------
 tab1, tab2, tab3 = st.tabs(
     [
-        "1–2: Age-stratified risk-factor & Correlations of biomarkers",
-        "3–4: Biomarkers in diseases & Age trends",
-        "5–7: Comorbidities & Lifestyle",
+        "1: Age-stratified risk-factor & Correlations of biomarkers",
+        "2: Biomarkers in diseases & Age trends",
+        "3: Comorbidities & Lifestyle",
     ]
 )
 
@@ -695,7 +695,7 @@ with tab2:
 # 3. Metabolic markers across comorbidity levels
 # -----------------------------------------------
 
-    st.markdown("#### 3. Metabolic marker levels in selected disease groups")
+    st.markdown("#### 1. Metabolic marker levels in selected disease groups")
 
     selected_biomarker = st.selectbox(
         "Select a biomarker to compare",
@@ -800,7 +800,7 @@ with tab2:
     # 4. Biomarker progression across the lifespan
     # -----------------------------------------------
 
-    st.markdown("#### 4. Biomarker trends across age with clinical thresholds")
+    st.markdown("#### 2. Biomarker trends across age with clinical thresholds")
 
     selected_biomarker_age = st.selectbox(
         "Select a biomarker to view age trends",
@@ -1147,7 +1147,7 @@ with tab3:
     # -----------------------------
     # 1. Disease prevalence summary
     # -----------------------------
-    st.subheader("5. Comorbidity overview under current filters")
+    st.subheader("1. Comorbidity overview under current filters")
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -1186,7 +1186,7 @@ with tab3:
     # 2. Metabolic markers across comorbidity levels
     # -----------------------------
 
-    st.subheader("6. Metabolic markers across comorbidity levels")
+    st.subheader("2. Metabolic markers across comorbidity levels")
 
     cm_y_var = st.selectbox(
         "Metabolic variable (y-axis, by comorbidity count)",
@@ -1303,7 +1303,7 @@ with tab3:
     # -----------------------------
     # 3. Comorbidity / disease prevalence by lifestyle level
     # -----------------------------
-    st.subheader("7. Comorbidity / disease prevalence by lifestyle level")
+    st.subheader("3. Comorbidity / disease prevalence by lifestyle level")
 
     life_var = st.selectbox(
         "Lifestyle variable to group by",
