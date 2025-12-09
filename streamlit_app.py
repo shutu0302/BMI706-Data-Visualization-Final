@@ -216,32 +216,12 @@ def prevalence_table(df: pd.DataFrame) -> pd.DataFrame:
 # -----------------------------
 df = load_data(DATA_PATH)
 
-st.title("Cardiometabolic Risk Explorer Dashboard")
+st.title("Mapping Age, Lifestyle, and Cardiometabolic Health")
 st.markdown(
     """
 Interactive dashboard to explore how age, sex, lifestyle behaviours and biomarkers 
 relate to cardiometabolic risk and multimorbidity.
-    
-1. Age-stratified risk-factor section:
-    Visualizes how risk factors change with age and relate to cardiometabolic health.
-
-2. Correlation matrix of biomarkers:
-    Examines pairwise correlations among metabolic and cardiovascular biomarkers, with filters for age, sex, and disease state.
-
-3. Metabolic markers across comorbidity levels:
-    Compares metabolic marker distributions between participants with and without selected conditions.
-
-4. Biomarker progression across the lifespan:
-    Shows how key biomarkers change with age, highlighting clinical risk thresholds.
-    
-5. Disease prevalence summary:
-    Summarizes comorbidity prevalence under current filters.
-
-6. Metabolic markers across comorbidity levels:
-    Compares metabolic markers across varying comorbidity burdens.
-
-7. Comorbidity / disease prevalence by lifestyle:
-    Shows how comorbidity prevalence shifts across lifestyle patterns.   
+       
 """
 )
 
