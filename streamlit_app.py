@@ -667,8 +667,8 @@ def correlation_matrix_section(filtered: pd.DataFrame) -> None:
 # -----------------------------
 tab1, tab2, tab3 = st.tabs(
     [
-        "1: Age-stratified risk-factor & Correlations of biomarkers",
-        "2: Biomarkers in diseases & Age trends",
+        "1: Age Trends & Biomarker Correlations",
+        "2: Biomarkers Across Disease & Age",
         "3: Comorbidities & Lifestyle",
     ]
 )
