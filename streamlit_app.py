@@ -696,10 +696,13 @@ with tab2:
 # -----------------------------------------------
 
     st.markdown("#### 1. Metabolic marker levels in selected disease groups")
-
+    available_biomarkers = ["LDL_Cholesterol", "HDL_Cholesterol", "Systolic_BP_Average", "Diastolic_BP_Average",
+                            "Serum_Glucose", "Glycohemoglobin", "BMI", "Waist_Circumference", "Triglycerides", 
+                            "Total_Cholesterol", "Hemoglobin"]
+    
     selected_biomarker = st.selectbox(
         "Select a biomarker to compare",
-        options=METABOLIC_COLS,
+        options=available_biomarkers,
         index=0,
         format_func=nice_label,
         key="task3_biomarker"
@@ -801,10 +804,10 @@ with tab2:
     # -----------------------------------------------
 
     st.markdown("#### 2. Biomarker trends across age with clinical thresholds")
-
+    
     selected_biomarker_age = st.selectbox(
         "Select a biomarker to view age trends",
-        options=METABOLIC_COLS,
+        options=available_biomarkers,
         index=0,
         format_func=nice_label,
         key="task4_biomarker"
@@ -812,88 +815,57 @@ with tab2:
 
     # Default clinical thresholds for different biomarkers
     DEFAULT_THRESHOLDS = {
-        "LDL_Cholesterol": [
-            {"value": 100, "label": "Optimal", "color": "#2ecc71"},
-            {"value": 130, "label": "Borderline High", "color": "#f39c12"},
-            {"value": 160, "label": "High", "color": "#e74c3c"}
-        ],
-        "HDL_Cholesterol": [
-            {"value": 40, "label": "Low (men)", "color": "#e74c3c"},
-            {"value": 50, "label": "Low (women)", "color": "#f39c12"},
-            {"value": 60, "label": "Protective", "color": "#2ecc71"}
-        ],
-        "Systolic_BP_Average": [
-            {"value": 120, "label": "Normal", "color": "#2ecc71"},
-            {"value": 130, "label": "Elevated", "color": "#f39c12"},
-            {"value": 140, "label": "Stage 1 HTN", "color": "#e67e22"},
-            {"value": 180, "label": "Stage 2 HTN", "color": "#e74c3c"}
-        ],
-        "Diastolic_BP_Average": [
-            {"value": 80, "label": "Normal", "color": "#2ecc71"},
-            {"value": 90, "label": "Stage 1 HTN", "color": "#e67e22"},
-            {"value": 120, "label": "Stage 2 HTN", "color": "#e74c3c"}
-        ],
-        "Serum_Glucose": [
-            {"value": 100, "label": "Normal", "color": "#2ecc71"},
-            {"value": 126, "label": "Prediabetes", "color": "#f39c12"},
-            {"value": 200, "label": "Diabetes", "color": "#e74c3c"}
-        ],
-        "Glycohemoglobin": [
-            {"value": 5.7, "label": "Normal", "color": "#2ecc71"},
-            {"value": 6.5, "label": "Prediabetes", "color": "#f39c12"},
-            {"value": 10, "label": "Diabetes", "color": "#e74c3c"}
-        ],
-        "BMI": [
-            {"value": 18.5, "label": "Underweight", "color": "#3498db"},
-            {"value": 25, "label": "Normal", "color": "#2ecc71"},
-            {"value": 30, "label": "Overweight", "color": "#f39c12"},
-            {"value": 40, "label": "Obese", "color": "#e74c3c"}
-        ],
-        "Waist_Circumference": [
-            {"value": 88, "label": "High risk (women)", "color": "#f39c12"},
-            {"value": 102, "label": "High risk (men)", "color": "#e74c3c"}
-        ],
-        "Triglycerides": [
-            {"value": 150, "label": "Normal", "color": "#2ecc71"},
-            {"value": 200, "label": "Borderline High", "color": "#f39c12"},
-            {"value": 500, "label": "High", "color": "#e74c3c"}
-        ],
-        "Total_Cholesterol": [
-            {"value": 200, "label": "Desirable", "color": "#2ecc71"},
-            {"value": 240, "label": "Borderline High", "color": "#f39c12"},
-            {"value": 300, "label": "High", "color": "#e74c3c"}
-        ],
-        "Creatinine": [
-            {"value": 0.7, "label": "Low normal", "color": "#3498db"},
-            {"value": 1.3, "label": "Normal", "color": "#2ecc71"},
-            {"value": 1.5, "label": "Elevated", "color": "#f39c12"}
-        ],
-        "Uric_Acid": [
-            {"value": 4, "label": "Normal lower", "color": "#2ecc71"},
-            {"value": 7, "label": "Normal upper (men)", "color": "#f39c12"},
-            {"value": 6, "label": "Normal upper (women)", "color": "#f39c12"}
-        ],
-        "Hemoglobin": [
-            {"value": 12, "label": "Low (women)", "color": "#e74c3c"},
-            {"value": 13.5, "label": "Low (men)", "color": "#f39c12"},
-            {"value": 17.5, "label": "Normal upper", "color": "#2ecc71"}
-        ],
-        "Hematocrit": [
-            {"value": 36, "label": "Low (women)", "color": "#e74c3c"},
-            {"value": 39, "label": "Low (men)", "color": "#f39c12"},
-            {"value": 50, "label": "Normal upper", "color": "#2ecc71"}
-        ],
-        "WBC_Count": [
-            {"value": 4.5, "label": "Low", "color": "#3498db"},
-            {"value": 11, "label": "Normal upper", "color": "#2ecc71"},
-            {"value": 15, "label": "Elevated", "color": "#e74c3c"}
-        ],
-        "Platelet_Count": [
-            {"value": 150, "label": "Low", "color": "#e74c3c"},
-            {"value": 400, "label": "Normal upper", "color": "#2ecc71"},
-            {"value": 450, "label": "Elevated", "color": "#f39c12"}
-        ]
-    }
+    "LDL_Cholesterol": [
+        {"value": 100, "label": "Optimal | Above Optimal", "color": "#2ecc71"},
+        {"value": 130, "label": "Above Optimal | Borderline High", "color": "#f39c12"},
+        {"value": 160, "label": "Borderline High | High", "color": "#e67e22"},
+        {"value": 190, "label": "High | Very High", "color": "#e74c3c"}
+    ],
+    "HDL_Cholesterol": [
+        {"value": 40, "label": "Low | Normal", "color": "#e74c3c"},
+        {"value": 60, "label": "Normal | High", "color": "#2ecc71"}
+    ],
+    "Systolic_BP_Average": [
+        {"value": 120, "label": "Normal | Elevated", "color": "#2ecc71"},
+        {"value": 130, "label": "Elevated | Stage 1 HTN", "color": "#f39c12"},
+        {"value": 140, "label": "Stage 1 HTN | Stage 2 HTN", "color":"#e74c3c"}
+    ],
+    "Diastolic_BP_Average": [
+        {"value": 80, "label": "Normal | Stage 1 HTN", "color": "#2ecc71"},
+        {"value": 90, "label": "Stage 1 HTN | Stage 2 HTN", "color": "#e74c3c"}
+    ],
+    "Serum_Glucose": [
+        {"value": 100, "label": "Normal | Prediabetes", "color": "#2ecc71"},
+        {"value": 126, "label": "Prediabetes | Diabetes", "color": "#e74c3c"}
+    ],
+    "Glycohemoglobin": [
+        {"value": 5.7, "label": "Normal | Prediabetes", "color": "#2ecc71"},
+        {"value": 6.5, "label": "Prediabetes | Diabetes", "color": "#e74c3c"}
+    ],
+    "BMI": [
+        {"value": 18.5, "label": "Underweight | Normal", "color": "#3498db"},
+        {"value": 25, "label": "Normal | Overweight", "color": "#2ecc71"},
+        {"value": 30, "label": "Overweight | Obesity", "color": "#f39c12"},
+        {"value": 40, "label": "Obesity | Severe Obesity", "color": "#e74c3c"}
+    ],
+    "Waist_Circumference": [
+        {"value": 88, "label": "High risk women", "color": "#f39c12"},
+        {"value": 102, "label": "High risk men", "color": "#e74c3c"}
+    ],
+    "Triglycerides": [
+        {"value": 150, "label": "Normal | Borderline High", "color": "#2ecc71"},
+        {"value": 200, "label": "Borderline High | High", "color": "#f39c12"},
+        {"value": 500, "label": "High | Very High", "color": "#e74c3c"}
+    ],
+    "Total_Cholesterol": [
+        {"value": 200, "label": "Desirable | Borderline High", "color": "#2ecc71"},
+        {"value": 240, "label": "Borderline Hight | High", "color": "#e74c3c"}
+    ],
+    "Hemoglobin": [
+        {"value": 11, "label": "Anemia women", "color": "#e74c3c"},
+        {"value": 13, "label": "Anemia men", "color": "#f39c12"}
+    ]
+}
 
     if "custom_thresholds_dict" not in st.session_state:
         st.session_state.custom_thresholds_dict = {}
