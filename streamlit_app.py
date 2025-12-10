@@ -869,11 +869,10 @@ with tab2:
         {"value": 13, "label": "Anemia men", "color": "#f39c12"}
     ]
 }
-
+    # Allow user to customize thresholds
     if "custom_thresholds_dict" not in st.session_state:
         st.session_state.custom_thresholds_dict = {}
 
-    # Temporary flag to prevent overwriting defaults during reset
     if "just_reset" not in st.session_state:
         st.session_state.just_reset = False
 
@@ -899,7 +898,6 @@ with tab2:
 
         updated_thresholds = []
 
-        # Build UI
         for i in range(num_thresholds):
             if i < len(current_thresholds):
                 default = current_thresholds[i]
@@ -933,21 +931,17 @@ with tab2:
         if not st.session_state.just_reset:
             st.session_state.custom_thresholds_dict[selected_biomarker_age] = updated_thresholds
 
-        # After saving, this run is no longer a "reset run"
         st.session_state.just_reset = False
 
         # Reset button
         if st.button("Reset to defaults", key=f"reset_thresh_{selected_biomarker_age}"):
-            # Mark that the next rerun should not save any UI values
             st.session_state.just_reset = True
 
-            # Delete custom thresholds for this biomarker
             if selected_biomarker_age in st.session_state.custom_thresholds_dict:
                 del st.session_state.custom_thresholds_dict[selected_biomarker_age]
 
             st.rerun()
 
-    # Set CLINICAL_THRESHOLDS for the plot
     if selected_biomarker_age in st.session_state.custom_thresholds_dict:
         CLINICAL_THRESHOLDS = {
             selected_biomarker_age: st.session_state.custom_thresholds_dict[selected_biomarker_age]
@@ -1064,7 +1058,7 @@ with tab2:
             ])
             st.caption(threshold_text)
             
-            st.caption("*Thresholds based on clinical guidelines (AHA, ADA, ACC, CDC, WHO). Individual risk assessment should consider multiple factors.*")
+            st.caption("*Thresholds based on clinical guidelines (NCEP, AHA, ADA, CDC, WHO). Individual risk assessment should consider multiple factors.*")
         
 
 
